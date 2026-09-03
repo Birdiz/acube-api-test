@@ -10,6 +10,7 @@ use App\File\Exception\EmptyFile;
 use App\File\Exception\MissingFilePart;
 use App\File\Exception\PartialUpload;
 use App\File\Exception\UploadTooLarge;
+use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
@@ -27,6 +28,7 @@ final class FileUpload
         #[Autowire('%kernel.project_dir%/var/uploads')]
         private readonly string $directory,
         private readonly Filesystem $filesystem,
+        private readonly EntityManagerInterface $entityManager,
     ) {
     }
 
@@ -41,7 +43,11 @@ final class FileUpload
 
         $file = new File($this->filename($upload), $format, $size);
 
+        // Bytes first: orphaned bytes are inert, a row pointing at none is not.
         $this->store($upload, $this->pathFor($file));
+
+        $this->entityManager->persist($file);
+        $this->entityManager->flush();
 
         return $file;
     }

@@ -96,7 +96,7 @@ final class FileUploadTest extends ApiTestCase
     #[TestDox('accepts a file sitting exactly on the size limit')]
     public function itAcceptsAFileAtTheLimit(): void
     {
-        $this->postFile(SampleFile::csvOfSize(self::MAX_UPLOAD_BYTES));
+        $this->postFile(SampleFile::csvOfSize($this->maxUploadBytes()));
 
         self::assertResponseStatusCodeSame(
             Response::HTTP_CREATED,
@@ -108,14 +108,51 @@ final class FileUploadTest extends ApiTestCase
     #[TestDox('rejects a file one byte over the limit with 413')]
     public function itRejectsAFileOverTheLimit(): void
     {
-        $this->postFile(SampleFile::csvOfSize(self::MAX_UPLOAD_BYTES + 1));
+        $this->postFile(SampleFile::csvOfSize($this->maxUploadBytes() + 1));
 
         $problem = $this->assertProblemResponse(Response::HTTP_REQUEST_ENTITY_TOO_LARGE);
         self::assertStringContainsString(
-            (string) self::MAX_UPLOAD_BYTES,
+            (string) $this->maxUploadBytes(),
             $problem['detail'],
             'The error should state the limit, so the caller knows what to aim for.',
         );
+    }
+
+    #[Test]
+    #[TestDox('reports a file PHP itself refused as 413, not a crash')]
+    public function itMapsPhpsOwnSizeErrorToAClientError(): void
+    {
+        // The app limit is pinned to PHP's upload_max_filesize, so the two
+        // fire at the same boundary and PHP may well get there first. When it
+        // does, the file on disk is empty or partial and unreadable: touching
+        // it before checking the error code is how this becomes a 500.
+        $this->postFile(SampleFile::csv(), error: \UPLOAD_ERR_INI_SIZE);
+
+        $problem = $this->assertProblemResponse(Response::HTTP_REQUEST_ENTITY_TOO_LARGE);
+        self::assertStringContainsString((string) $this->maxUploadBytes(), $problem['detail']);
+    }
+
+    #[Test]
+    #[TestDox('reports a truncated upload as 422, not a crash')]
+    public function itMapsAPartialUploadToAClientError(): void
+    {
+        // The connection dropped mid-upload. Nothing is wrong on our side.
+        $this->postFile(SampleFile::csv(), error: \UPLOAD_ERR_PARTIAL);
+
+        $this->assertProblemResponse(Response::HTTP_UNPROCESSABLE_ENTITY);
+    }
+
+    #[Test]
+    #[TestDox('reports a body PHP discarded as 413, not as a missing file')]
+    public function itRecognisesAnUploadDroppedByPhp(): void
+    {
+        // Past post_max_size PHP empties $_FILES, so the naive reading is
+        // "no file was sent" -> 422. Content-Length says otherwise, and 413
+        // is both true and actionable; 422 would send the caller hunting for
+        // a bug in their multipart encoding.
+        $this->postFileDroppedByPhp($this->maxUploadBytes() * 8);
+
+        $this->assertProblemResponse(Response::HTTP_REQUEST_ENTITY_TOO_LARGE);
     }
 
     #[Test]

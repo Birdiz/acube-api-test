@@ -52,12 +52,17 @@ The interesting ones are where the obvious answer is wrong.
 | Unsupported couple | `422` | Returned from the `POST`, not discovered later. Syntactically fine, semantically impossible. Body lists `supported_formats`. |
 | Unknown `fileId` | `404` | It is in the path, so it identifies the resource being acted on. Checked before the body. |
 | Unsupported file type | `415` | From magic bytes — a `.csv` name on a PDF is still a PDF. |
-| File too large | `413` | Limit (`FILE_MAX_SIZE_BYTES`, 20 MiB) stated in the error, and inclusive. |
+| File too large | `413` | Limit (`FILE_MAX_SIZE_BYTES`) stated in the error, and inclusive. Also covers a body PHP discarded — see below. |
 | Empty file, no `file` part, no `format` | `422` | Well-formed request, unusable content. |
 | Malformed JSON | `400` | Unparseable, so there is nothing to validate. |
 
-All errors are RFC 9457 problem documents. A bare status code is not an explicit
-error.
+All errors are RFC 9457 problem documents, and **nothing a caller can send may
+produce a 5xx**: a malformed, oversized or hostile request is always a 4xx that
+explains itself. `ApiTestCase::assertNoServerError()` runs after every request in
+the suite, so a crash fails the test at the point it happened.
+
+A 5xx is reserved for faults that are genuinely ours (`UPLOAD_ERR_CANT_WRITE`, a
+full disk) — cases where the caller changing their request would not help.
 
 ## Validating the file
 
@@ -70,6 +75,42 @@ bare ZIP is refused.
 
 **Size** is bounded by the application rather than assumed, since it is unknown
 up front, and enforced before the file is stored.
+
+### The size limit is pinned to PHP's
+
+`FILE_MAX_SIZE_BYTES` is **2 MiB**, and that number is not chosen on its own
+merits — it mirrors PHP's `upload_max_filesize`, which is the real ceiling:
+
+| Layer | Limit | On breach |
+| --- | --- | --- |
+| `post_max_size` | 8 MiB | Whole body discarded; `$_POST` and `$_FILES` arrive empty |
+| `upload_max_filesize` | 2 MiB | File arrives with `UPLOAD_ERR_INI_SIZE` and no usable contents |
+| `FILE_MAX_SIZE_BYTES` | 2 MiB | Our own `413`, naming the limit |
+
+An application limit *above* PHP's would be fiction: the upload dies a layer
+below, and the caller gets something other than the documented `413`. So the app
+limit tracks the smallest ceiling above it, and both of the lower layers are
+handled rather than assumed unreachable:
+
+- `UPLOAD_ERR_INI_SIZE` → `413`. The temporary file is empty or partial, so the
+  error code has to be checked *before* the contents are read; reading first is
+  how this turns into a 500.
+- `UPLOAD_ERR_PARTIAL` → `422`. The connection dropped mid-upload.
+- Body discarded past `post_max_size` → `413`, not `422`. `$_FILES` is empty so
+  the naive reading is "no file was sent", but `Content-Length` says otherwise,
+  and `413` is the answer that tells the caller something useful instead of
+  sending them to look for a bug in their multipart encoding.
+
+Two caveats worth knowing. These PHP values are **compiled-in defaults**, not
+pinned in `docker/php/php.ini`, so a base-image change could move them silently;
+pinning them next to the app limit would remove that risk. And the functional
+tests construct `UploadedFile` objects directly, which never invokes PHP's real
+upload machinery — the tests above reproduce the *error codes* PHP would set,
+but only an HTTP request against a running container exercises the limits
+themselves.
+
+Raising the limit therefore means raising `upload_max_filesize` and
+`post_max_size` first, then `FILE_MAX_SIZE_BYTES`.
 
 ## Execution
 

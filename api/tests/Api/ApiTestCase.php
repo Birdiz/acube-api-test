@@ -29,9 +29,6 @@ use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
  */
 abstract class ApiTestCase extends WebTestCase
 {
-    /** Kept in sync with FILE_MAX_SIZE_BYTES in .env.test. */
-    protected const int MAX_UPLOAD_BYTES = 1048576;
-
     protected const string TRANSPORT = 'conversions';
 
     protected KernelBrowser $client;
@@ -61,6 +58,19 @@ abstract class ApiTestCase extends WebTestCase
         // tests/bootstrap.php clears the directory once, before anything runs.
     }
 
+    /**
+     * The configured upload limit, read rather than duplicated: a test that
+     * hardcodes it would keep passing after the limit moved.
+     */
+    protected function maxUploadBytes(): int
+    {
+        $configured = $_ENV['FILE_MAX_SIZE_BYTES'] ?? null;
+
+        self::assertNotNull($configured, 'FILE_MAX_SIZE_BYTES must be configured.');
+
+        return (int) $configured;
+    }
+
     // ---------------------------------------------------------------- requests
 
     /**
@@ -69,22 +79,48 @@ abstract class ApiTestCase extends WebTestCase
      * $sentName and $sentMimeType let a test lie about what it is uploading,
      * which is how "trust the bytes, not the client" gets verified.
      */
-    protected function postFile(string $path, ?string $sentName = null, ?string $sentMimeType = null): void
-    {
+    protected function postFile(
+        string $path,
+        ?string $sentName = null,
+        ?string $sentMimeType = null,
+        ?int $error = null,
+    ): void {
         $upload = new UploadedFile(
             path: $path,
             originalName: $sentName ?? basename($path),
             mimeType: $sentMimeType,
+            error: $error,
             test: true,
         );
 
         $this->client->request('POST', '/api/files', files: ['file' => $upload]);
+        $this->assertNoServerError();
+    }
+
+    /**
+     * Reproduces an upload that PHP threw away before the application ran.
+     *
+     * Past post_max_size, PHP discards the whole body: $_POST and $_FILES come
+     * back empty and only Content-Length still says a file was sent.
+     */
+    protected function postFileDroppedByPhp(int $announcedBytes): void
+    {
+        $this->client->request(
+            'POST',
+            '/api/files',
+            server: [
+                'CONTENT_TYPE' => 'multipart/form-data; boundary=----dropped',
+                'CONTENT_LENGTH' => (string) $announcedBytes,
+            ],
+        );
+        $this->assertNoServerError();
     }
 
     /** POST /api/files with no `file` part at all. */
     protected function postFileWithoutAttachment(): void
     {
         $this->client->request('POST', '/api/files');
+        $this->assertNoServerError();
     }
 
     protected function postConversion(string $fileId, mixed $body): void
@@ -95,16 +131,19 @@ abstract class ApiTestCase extends WebTestCase
             server: ['CONTENT_TYPE' => 'application/json'],
             content: \is_string($body) ? $body : json_encode($body, \JSON_THROW_ON_ERROR),
         );
+        $this->assertNoServerError();
     }
 
     protected function getConversion(string $conversionId): void
     {
         $this->client->request('GET', \sprintf('/api/conversions/%s', $conversionId));
+        $this->assertNoServerError();
     }
 
     protected function getConversionResult(string $conversionId): void
     {
         $this->client->request('GET', \sprintf('/api/conversions/%s/result', $conversionId));
+        $this->assertNoServerError();
     }
 
     // ----------------------------------------------------------- happy shortcuts
@@ -167,6 +206,24 @@ abstract class ApiTestCase extends WebTestCase
     }
 
     // ------------------------------------------------------------- assertions
+
+    /**
+     * No request a caller can make may produce a 5xx.
+     *
+     * Every request helper runs this, so a crash surfaces as "the API returned
+     * a server error" at the point it happened, rather than as a confusing
+     * assertion about a status code much further down the test.
+     */
+    protected function assertNoServerError(): void
+    {
+        $status = $this->response()->getStatusCode();
+
+        self::assertLessThan(500, $status, \sprintf(
+            'The API answered %d. A caller must never be able to trigger a server error; '
+            .'anything wrong with a request is a 4xx problem document.',
+            $status,
+        ));
+    }
 
     protected function response(): Response
     {

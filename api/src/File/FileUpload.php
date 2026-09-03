@@ -1,0 +1,185 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\File;
+
+use App\Conversion\SourceFormat;
+use App\Entity\File;
+use App\File\Exception\EmptyFile;
+use App\File\Exception\MissingFilePart;
+use App\File\Exception\PartialUpload;
+use App\File\Exception\UploadTooLarge;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
+use Symfony\Component\HttpFoundation\File\UploadedFile;
+use Symfony\Component\HttpFoundation\Request;
+
+/**
+ * Turns a multipart request into a stored file, refusing it as early as it can
+ * be refused. The order matters: PHP's own error code is read before the
+ * contents, because a file PHP rejected has no usable contents to read.
+ */
+final class FileUpload
+{
+    public function __construct(
+        #[Autowire('%env(int:FILE_MAX_SIZE_BYTES)%')]
+        private readonly int $maxSizeBytes,
+        #[Autowire('%kernel.project_dir%/var/uploads')]
+        private readonly string $directory,
+    ) {
+    }
+
+    public function receive(Request $request): File
+    {
+        $upload = $this->attachment($request);
+
+        $this->failOnPhpError($upload);
+
+        $size = $this->size($upload);
+        $format = SourceFormat::fromMimeType($this->detectMimeType($upload));
+
+        $file = new File($this->filename($upload), $format, $size);
+
+        $this->ensureDirectoryExists();
+        $this->streamToStorage($upload, $this->pathFor($file));
+
+        return $file;
+    }
+
+    /** The layout is this service's to know, and is derived from the id alone. */
+    private function pathFor(File $file): string
+    {
+        return $this->directory.'/'.$file->id();
+    }
+
+    private function attachment(Request $request): UploadedFile
+    {
+        $upload = $request->files->get('file');
+
+        if ($upload instanceof UploadedFile) {
+            return $upload;
+        }
+
+        // Past post_max_size PHP discards the whole body, so $_FILES is empty
+        // and only Content-Length still says a file was sent. The threshold is
+        // PHP's, not ours: a body under it was read in full, so a missing part
+        // there really is a missing part and not a discarded upload.
+        $announced = (int) $request->headers->get('Content-Length', '0');
+
+        if ($announced > $this->postMaxSizeBytes()) {
+            throw UploadTooLarge::discardedByPhp($announced, $this->maxSizeBytes);
+        }
+
+        throw MissingFilePart::inMultipartBody();
+    }
+
+    /**
+     * `post_max_size` in bytes. An unset or non-positive value means PHP
+     * accepts any body, so nothing can have been discarded.
+     */
+    private function postMaxSizeBytes(): int
+    {
+        $configured = trim((string) ini_get('post_max_size'));
+        $amount = (int) $configured;
+
+        if ($amount <= 0) {
+            return \PHP_INT_MAX;
+        }
+
+        return $amount * match (strtolower(substr($configured, -1))) {
+            'g' => 1024 ** 3,
+            'm' => 1024 ** 2,
+            'k' => 1024,
+            default => 1,
+        };
+    }
+
+    private function failOnPhpError(UploadedFile $upload): void
+    {
+        match ($upload->getError()) {
+            \UPLOAD_ERR_OK => null,
+            // FORM_SIZE is the caller's own MAX_FILE_SIZE field, so it is as
+            // much a size breach as PHP's own limit and gets the same answer.
+            \UPLOAD_ERR_INI_SIZE, \UPLOAD_ERR_FORM_SIZE => throw UploadTooLarge::refusedByPhp($this->maxSizeBytes),
+            \UPLOAD_ERR_PARTIAL => throw PartialUpload::wasReceived(),
+            // What is left — a full disk, an unwritable temp directory — is
+            // ours, not the caller's: it must not be dressed up as a 4xx.
+            default => throw new \RuntimeException($upload->getErrorMessage()),
+        };
+    }
+
+    /**
+     * The client's filename is arbitrary bytes of arbitrary length. It is
+     * echoed back in the 201 and stored in a bounded column, so it is made
+     * printable and cut to size here rather than left to blow up in
+     * json_encode() or at flush() once the database is not SQLite.
+     */
+    private function filename(UploadedFile $upload): string
+    {
+        $name = $upload->getClientOriginalName();
+
+        if (!mb_check_encoding($name, 'UTF-8')) {
+            $name = mb_convert_encoding($name, 'UTF-8', 'UTF-8');
+        }
+
+        return mb_substr($name, 0, File::MAX_FILENAME_LENGTH);
+    }
+
+    private function size(UploadedFile $upload): int
+    {
+        $size = $upload->getSize();
+
+        if (false === $size) {
+            throw new \RuntimeException('The size of the uploaded file could not be read.');
+        }
+
+        if (0 === $size) {
+            throw EmptyFile::wasUploaded();
+        }
+
+        if ($size > $this->maxSizeBytes) {
+            throw UploadTooLarge::forSize($size, $this->maxSizeBytes);
+        }
+
+        return $size;
+    }
+
+    /** From the bytes on disk. The filename and the declared type are claims. */
+    private function detectMimeType(UploadedFile $upload): string
+    {
+        $detected = (new \finfo(\FILEINFO_MIME_TYPE))->file($upload->getPathname());
+
+        if (false === $detected) {
+            throw new \RuntimeException('The type of the uploaded file could not be determined.');
+        }
+
+        return $detected;
+    }
+
+    /**
+     * A filesystem-level stream copy: the bytes go straight from the temporary
+     * file to storage and are never held in memory, however large the upload.
+     *
+     * A copy rather than a rename because the temporary file is not ours to
+     * consume — PHP discards it at the end of the request either way, and the
+     * two paths are usually on different filesystems, where a rename would
+     * degrade to this copy anyway.
+     */
+    private function streamToStorage(UploadedFile $upload, string $destination): void
+    {
+        if (!copy($upload->getPathname(), $destination)) {
+            throw new \RuntimeException(\sprintf('Could not store the upload at "%s".', $destination));
+        }
+    }
+
+    private function ensureDirectoryExists(): void
+    {
+        if (is_dir($this->directory)) {
+            return;
+        }
+
+        if (!mkdir($this->directory, 0o775, true) && !is_dir($this->directory)) {
+            throw new \RuntimeException(\sprintf('Could not create "%s".', $this->directory));
+        }
+    }
+}

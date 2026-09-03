@@ -58,8 +58,9 @@ The interesting ones are where the obvious answer is wrong.
 
 All errors are RFC 9457 problem documents, and **nothing a caller can send may
 produce a 5xx**: a malformed, oversized or hostile request is always a 4xx that
-explains itself. `ApiTestCase::assertNoServerError()` runs after every request in
-the suite, so a crash fails the test at the point it happened.
+explains itself. `ApiAssert::noServerError()` runs on every response as it arrives, so a
+crash fails the test where it happened rather than being masked by whatever
+assertion would have failed next.
 
 A 5xx is reserved for faults that are genuinely ours (`UPLOAD_ERR_CANT_WRITE`, a
 full disk) — cases where the caller changing their request would not help.
@@ -126,17 +127,20 @@ contents.
 ### In tests
 
 There is no worker inside a functional test, so the transport is `in-memory://`
-under `when@test` and drained by `ApiTestCase::runConversionWorker()`. That makes
+under `when@test` and drained by `ConversionQueue::drain()`. That makes
 "not ready" and "ready" ordered states rather than a race against a sleep:
 
 ```php
-$this->getConversionResult($id);   // 409, still pending
-$this->runConversionWorker();      // the worker gets to it
-$this->getConversionResult($id);   // 200, the file
+$this->api->getConversionResult($id);  // 409, still pending
+$this->queue->drain();                 // the worker gets to it
+$this->api->getConversionResult($id);  // 200, the file
 ```
 
 Everything else is black-box HTTP: routes, status codes and payloads, never the
-classes behind them.
+classes behind them. The harness splits three ways — `ApiClient` makes the
+requests and knows the routes, `ApiAssert` holds the rules that hold across
+endpoints, and `ConversionQueue` stands in for the worker — so `ApiTestCase`
+only composes them.
 
 ## Trade-offs taken
 

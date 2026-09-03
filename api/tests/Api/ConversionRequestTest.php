@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Api;
 
 use App\Tests\Api\Fixture\SampleFile;
+use App\Tests\Api\Support\ApiAssert;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\Attributes\TestDox;
@@ -42,17 +43,17 @@ final class ConversionRequestTest extends ApiTestCase
     {
         $fileId = $this->uploadFile(SampleFile::$source());
 
-        $this->postConversion($fileId, ['format' => $target]);
+        $this->api->postConversion($fileId, ['format' => $target]);
 
         self::assertResponseStatusCodeSame(
             Response::HTTP_ACCEPTED,
             '202 Accepted: the work is queued, not done.',
         );
 
-        $body = $this->responseBody();
+        $body = $this->body();
         self::assertArrayHasKey('id', $body);
         self::assertIsString($body['id']);
-        $this->assertIdIsOpaqueAndStable($body['id']);
+        ApiAssert::opaqueId($body['id']);
 
         self::assertSame(
             'pending',
@@ -62,7 +63,7 @@ final class ConversionRequestTest extends ApiTestCase
 
         // The conversion is its own resource: it outlives the file it came from
         // and is polled at the top level, not under /api/files.
-        $this->assertLocationMatches('/api/conversions/{id}', $body['id']);
+        ApiAssert::locationMatches($this->api->response(), '/api/conversions/{id}', $body['id']);
     }
 
     #[Test]
@@ -72,7 +73,7 @@ final class ConversionRequestTest extends ApiTestCase
         $fileId = $this->uploadFile(SampleFile::csv());
 
         $startedAt = microtime(true);
-        $this->postConversion($fileId, ['format' => 'xml']);
+        $this->api->postConversion($fileId, ['format' => 'xml']);
         $elapsed = microtime(true) - $startedAt;
 
         self::assertResponseStatusCodeSame(Response::HTTP_ACCEPTED);
@@ -87,9 +88,9 @@ final class ConversionRequestTest extends ApiTestCase
     #[TestDox('rejects an unknown fileId with 404')]
     public function itRejectsAnUnknownFile(): void
     {
-        $this->postConversion('01JQZ0000000000000000UNKN0WN', ['format' => 'json']);
+        $this->api->postConversion('01JQZ0000000000000000UNKN0WN', ['format' => 'json']);
 
-        $this->assertProblemResponse(Response::HTTP_NOT_FOUND);
+        ApiAssert::problem($this->api->response(), Response::HTTP_NOT_FOUND);
     }
 
     #[Test]
@@ -98,9 +99,9 @@ final class ConversionRequestTest extends ApiTestCase
     {
         // The path identifies the resource being acted on; if it isn't there,
         // there is nothing to validate a body against.
-        $this->postConversion('01JQZ0000000000000000UNKN0WN', ['format' => 'pdf']);
+        $this->api->postConversion('01JQZ0000000000000000UNKN0WN', ['format' => 'pdf']);
 
-        $this->assertProblemResponse(Response::HTTP_NOT_FOUND);
+        ApiAssert::problem($this->api->response(), Response::HTTP_NOT_FOUND);
     }
 
     #[Test]
@@ -109,9 +110,9 @@ final class ConversionRequestTest extends ApiTestCase
     {
         $fileId = $this->uploadFile(SampleFile::csv());
 
-        $this->postConversion($fileId, ['format' => 'pdf']);
+        $this->api->postConversion($fileId, ['format' => 'pdf']);
 
-        $problem = $this->assertProblemResponse(Response::HTTP_UNPROCESSABLE_ENTITY);
+        $problem = ApiAssert::problem($this->api->response(), Response::HTTP_UNPROCESSABLE_ENTITY);
         self::assertStringContainsStringIgnoringCase('pdf', $problem['detail']);
     }
 
@@ -121,14 +122,14 @@ final class ConversionRequestTest extends ApiTestCase
     {
         $fileId = $this->uploadFile(SampleFile::csv());
 
-        $this->postConversion($fileId, ['format' => 'pdf']);
+        $this->api->postConversion($fileId, ['format' => 'pdf']);
 
         self::assertResponseStatusCodeSame(Response::HTTP_UNPROCESSABLE_ENTITY);
         self::assertFalse(
-            $this->response()->headers->has('Location'),
+            $this->api->response()->headers->has('Location'),
             'A rejected request must not leave a conversion behind to poll.',
         );
-        self::assertArrayNotHasKey('id', $this->responseBody());
+        self::assertArrayNotHasKey('id', $this->body());
     }
 
     #[Test]
@@ -137,9 +138,9 @@ final class ConversionRequestTest extends ApiTestCase
     {
         $fileId = $this->uploadFile(SampleFile::csv());
 
-        $this->postConversion($fileId, ['format' => 'yaml']);
+        $this->api->postConversion($fileId, ['format' => 'yaml']);
 
-        $problem = $this->assertProblemResponse(Response::HTTP_UNPROCESSABLE_ENTITY);
+        $problem = ApiAssert::problem($this->api->response(), Response::HTTP_UNPROCESSABLE_ENTITY);
         self::assertArrayHasKey(
             'supported_formats',
             $problem,
@@ -154,9 +155,9 @@ final class ConversionRequestTest extends ApiTestCase
     {
         $fileId = $this->uploadFile(SampleFile::csv());
 
-        $this->postConversion($fileId, []);
+        $this->api->postConversion($fileId, []);
 
-        $this->assertProblemResponse(Response::HTTP_UNPROCESSABLE_ENTITY);
+        ApiAssert::problem($this->api->response(), Response::HTTP_UNPROCESSABLE_ENTITY);
     }
 
     #[Test]
@@ -166,9 +167,9 @@ final class ConversionRequestTest extends ApiTestCase
         $fileId = $this->uploadFile(SampleFile::csv());
 
         // Not a validation failure — the request itself is unparseable.
-        $this->postConversion($fileId, '{"format": ');
+        $this->api->postConversion($fileId, '{"format": ');
 
-        $this->assertProblemResponse(Response::HTTP_BAD_REQUEST);
+        ApiAssert::problem($this->api->response(), Response::HTTP_BAD_REQUEST);
     }
 
     #[Test]
@@ -179,8 +180,8 @@ final class ConversionRequestTest extends ApiTestCase
 
         $conversionId = $this->requestConversion($fileId, 'XML');
 
-        $this->getConversion($conversionId);
-        self::assertSame('xml', $this->responseBody()['format']);
+        $this->api->getConversion($conversionId);
+        self::assertSame('xml', $this->body()['format']);
     }
 
     #[Test]

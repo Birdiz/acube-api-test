@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Api;
 
 use App\Tests\Api\Fixture\SampleFile;
+use App\Tests\Api\Support\ApiAssert;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\Attributes\TestDox;
 use Symfony\Component\HttpFoundation\Response;
@@ -27,40 +28,40 @@ final class ConversionWorkflowTest extends ApiTestCase
     {
         // 1. The customer hands over a file. Its shape and size are unknown to
         //    us until it lands, so this is the step that validates both.
-        $this->postFile(SampleFile::xlsx());
+        $this->api->postFile(SampleFile::xlsx());
         self::assertResponseStatusCodeSame(Response::HTTP_CREATED);
-        $fileId = $this->responseBody()['id'];
-        $this->assertLocationMatches('/api/files/{id}', $fileId);
+        $fileId = $this->body()['id'];
+        ApiAssert::locationMatches($this->api->response(), '/api/files/{id}', $fileId);
 
         // 2. They ask for a conversion. The job runs for minutes, so the answer
         //    is a receipt, not a result.
-        $this->postConversion($fileId, ['format' => 'xml']);
+        $this->api->postConversion($fileId, ['format' => 'xml']);
         self::assertResponseStatusCodeSame(Response::HTTP_ACCEPTED);
-        $conversion = $this->responseBody();
+        $conversion = $this->body();
         $conversionId = $conversion['id'];
         self::assertSame('pending', $conversion['status']);
-        $statusUrl = $this->assertLocationMatches('/api/conversions/{id}', $conversionId);
+        $statusUrl = ApiAssert::locationMatches($this->api->response(), '/api/conversions/{id}', $conversionId);
 
         // 3. They poll the address they were given. Still pending: asking for
         //    the result now is a conflict, not a 404.
-        $this->client->request('GET', $statusUrl);
+        $this->api->get($statusUrl);
         self::assertResponseStatusCodeSame(Response::HTTP_OK);
-        self::assertSame('pending', $this->responseBody()['status']);
+        self::assertSame('pending', $this->body()['status']);
 
-        $this->getConversionResult($conversionId);
+        $this->api->getConversionResult($conversionId);
         self::assertResponseStatusCodeSame(Response::HTTP_CONFLICT);
 
         // 4. The worker gets to it.
-        $this->runConversionWorker();
+        $this->queue->drain();
 
-        $this->client->request('GET', $statusUrl);
-        self::assertSame('done', $this->responseBody()['status']);
+        $this->api->get($statusUrl);
+        self::assertSame('done', $this->body()['status']);
 
         // 5. And the file is there, as XML.
-        $this->getConversionResult($conversionId);
+        $this->api->getConversionResult($conversionId);
         self::assertResponseStatusCodeSame(Response::HTTP_OK);
-        self::assertStringStartsWith('application/xml', (string) $this->response()->headers->get('Content-Type'));
-        self::assertNotSame('', (string) $this->response()->getContent());
+        self::assertStringStartsWith('application/xml', (string) $this->api->response()->headers->get('Content-Type'));
+        self::assertNotSame('', (string) $this->api->response()->getContent());
     }
 
     #[Test]
@@ -71,7 +72,7 @@ final class ConversionWorkflowTest extends ApiTestCase
 
         $fileId = $this->uploadFile(SampleFile::csv());
         $this->requestConversion($fileId, 'json');
-        $this->getConversionResult($fileId);
+        $this->api->getConversionResult($fileId);
 
         $elapsed = microtime(true) - $startedAt;
 
@@ -91,15 +92,15 @@ final class ConversionWorkflowTest extends ApiTestCase
         $asJson = $this->requestConversion($fileId, 'json');
         $asXml = $this->requestConversion($fileId, 'xml');
 
-        $this->runConversionWorker();
+        $this->queue->drain();
 
-        $this->getConversionResult($asJson);
+        $this->api->getConversionResult($asJson);
         self::assertResponseStatusCodeSame(Response::HTTP_OK);
-        self::assertStringStartsWith('application/json', (string) $this->response()->headers->get('Content-Type'));
+        self::assertStringStartsWith('application/json', (string) $this->api->response()->headers->get('Content-Type'));
 
-        $this->getConversionResult($asXml);
+        $this->api->getConversionResult($asXml);
         self::assertResponseStatusCodeSame(Response::HTTP_OK);
-        self::assertStringStartsWith('application/xml', (string) $this->response()->headers->get('Content-Type'));
+        self::assertStringStartsWith('application/xml', (string) $this->api->response()->headers->get('Content-Type'));
     }
 
     #[Test]
@@ -110,13 +111,13 @@ final class ConversionWorkflowTest extends ApiTestCase
         $goodConversion = $this->requestConversion($goodFile, 'xml');
 
         // A second request that is refused up front must leave the first alone.
-        $this->postConversion($goodFile, ['format' => 'pdf']);
+        $this->api->postConversion($goodFile, ['format' => 'pdf']);
         self::assertResponseStatusCodeSame(Response::HTTP_UNPROCESSABLE_ENTITY);
 
-        $this->runConversionWorker();
+        $this->queue->drain();
 
-        $this->getConversion($goodConversion);
-        self::assertSame('done', $this->responseBody()['status']);
+        $this->api->getConversion($goodConversion);
+        self::assertSame('done', $this->body()['status']);
     }
 
     #[Test]
@@ -124,17 +125,17 @@ final class ConversionWorkflowTest extends ApiTestCase
     public function itRejectsBadInputBeforeQueueingAnything(): void
     {
         // Neither of these should ever reach the worker: both are knowable now.
-        $this->postFile(SampleFile::pdf());
+        $this->api->postFile(SampleFile::pdf());
         self::assertResponseStatusCodeSame(Response::HTTP_UNSUPPORTED_MEDIA_TYPE);
 
         $fileId = $this->uploadFile(SampleFile::csv());
-        $this->postConversion($fileId, ['format' => 'pdf']);
+        $this->api->postConversion($fileId, ['format' => 'pdf']);
         self::assertResponseStatusCodeSame(Response::HTTP_UNPROCESSABLE_ENTITY);
 
-        $this->runConversionWorker();
+        $this->queue->drain();
 
         // Nothing was queued, so nothing ran, so nothing failed.
-        $this->getConversion($fileId);
+        $this->api->getConversion($fileId);
         self::assertResponseStatusCodeSame(
             Response::HTTP_NOT_FOUND,
             'A file id is not a conversion id; the two namespaces stay separate.',

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Api;
 
 use App\Tests\Api\Fixture\SampleFile;
+use App\Tests\Api\Support\ApiAssert;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\Attributes\TestDox;
@@ -36,25 +37,25 @@ final class FileUploadTest extends ApiTestCase
     #[TestDox('accepts a $_dataName file with 201, an id and a Location')]
     public function itAcceptsEverySupportedSourceType(string $path): void
     {
-        $this->postFile($path);
+        $this->api->postFile($path);
 
         self::assertResponseStatusCodeSame(Response::HTTP_CREATED);
 
-        $body = $this->responseBody();
+        $body = $this->body();
         self::assertArrayHasKey('id', $body, 'The customer needs an id to hang a conversion off.');
         self::assertIsString($body['id']);
-        $this->assertIdIsOpaqueAndStable($body['id']);
+        ApiAssert::opaqueId($body['id']);
 
-        $this->assertLocationMatches('/api/files/{id}', $body['id']);
+        ApiAssert::locationMatches($this->api->response(), '/api/files/{id}', $body['id']);
     }
 
     #[Test]
     #[TestDox('rejects an unsupported type with 415')]
     public function itRejectsAnUnsupportedFileType(): void
     {
-        $this->postFile(SampleFile::pdf());
+        $this->api->postFile(SampleFile::pdf());
 
-        $problem = $this->assertProblemResponse(Response::HTTP_UNSUPPORTED_MEDIA_TYPE);
+        $problem = ApiAssert::problem($this->api->response(), Response::HTTP_UNSUPPORTED_MEDIA_TYPE);
         self::assertStringContainsStringIgnoringCase(
             'pdf',
             $problem['detail'],
@@ -68,18 +69,18 @@ final class FileUploadTest extends ApiTestCase
     {
         // A PDF wearing a .csv name. Trusting the extension here would mean
         // queueing a two-minute job that is guaranteed to fail at the end.
-        $this->postFile(SampleFile::pdf(), sentName: 'quarterly-report.csv');
+        $this->api->postFile(SampleFile::pdf(), sentName: 'quarterly-report.csv');
 
-        $this->assertProblemResponse(Response::HTTP_UNSUPPORTED_MEDIA_TYPE);
+        ApiAssert::problem($this->api->response(), Response::HTTP_UNSUPPORTED_MEDIA_TYPE);
     }
 
     #[Test]
     #[TestDox('detects the type from the bytes, not the declared Content-Type')]
     public function itIgnoresTheClientDeclaredMimeType(): void
     {
-        $this->postFile(SampleFile::pdf(), sentName: 'data.csv', sentMimeType: 'text/csv');
+        $this->api->postFile(SampleFile::pdf(), sentName: 'data.csv', sentMimeType: 'text/csv');
 
-        $this->assertProblemResponse(Response::HTTP_UNSUPPORTED_MEDIA_TYPE);
+        ApiAssert::problem($this->api->response(), Response::HTTP_UNSUPPORTED_MEDIA_TYPE);
     }
 
     #[Test]
@@ -87,16 +88,16 @@ final class FileUploadTest extends ApiTestCase
     public function itRejectsAZipThatIsNotASpreadsheet(): void
     {
         // XLSX and ODS are ZIP containers; "it unzips" is not good enough.
-        $this->postFile(SampleFile::zip(), sentName: 'books.xlsx');
+        $this->api->postFile(SampleFile::zip(), sentName: 'books.xlsx');
 
-        $this->assertProblemResponse(Response::HTTP_UNSUPPORTED_MEDIA_TYPE);
+        ApiAssert::problem($this->api->response(), Response::HTTP_UNSUPPORTED_MEDIA_TYPE);
     }
 
     #[Test]
     #[TestDox('accepts a file sitting exactly on the size limit')]
     public function itAcceptsAFileAtTheLimit(): void
     {
-        $this->postFile(SampleFile::csvOfSize($this->maxUploadBytes()));
+        $this->api->postFile(SampleFile::csvOfSize($this->maxUploadBytes()));
 
         self::assertResponseStatusCodeSame(
             Response::HTTP_CREATED,
@@ -108,9 +109,9 @@ final class FileUploadTest extends ApiTestCase
     #[TestDox('rejects a file one byte over the limit with 413')]
     public function itRejectsAFileOverTheLimit(): void
     {
-        $this->postFile(SampleFile::csvOfSize($this->maxUploadBytes() + 1));
+        $this->api->postFile(SampleFile::csvOfSize($this->maxUploadBytes() + 1));
 
-        $problem = $this->assertProblemResponse(Response::HTTP_REQUEST_ENTITY_TOO_LARGE);
+        $problem = ApiAssert::problem($this->api->response(), Response::HTTP_REQUEST_ENTITY_TOO_LARGE);
         self::assertStringContainsString(
             (string) $this->maxUploadBytes(),
             $problem['detail'],
@@ -126,9 +127,9 @@ final class FileUploadTest extends ApiTestCase
         // fire at the same boundary and PHP may well get there first. When it
         // does, the file on disk is empty or partial and unreadable: touching
         // it before checking the error code is how this becomes a 500.
-        $this->postFile(SampleFile::csv(), error: \UPLOAD_ERR_INI_SIZE);
+        $this->api->postFile(SampleFile::csv(), error: \UPLOAD_ERR_INI_SIZE);
 
-        $problem = $this->assertProblemResponse(Response::HTTP_REQUEST_ENTITY_TOO_LARGE);
+        $problem = ApiAssert::problem($this->api->response(), Response::HTTP_REQUEST_ENTITY_TOO_LARGE);
         self::assertStringContainsString((string) $this->maxUploadBytes(), $problem['detail']);
     }
 
@@ -137,9 +138,9 @@ final class FileUploadTest extends ApiTestCase
     public function itMapsAPartialUploadToAClientError(): void
     {
         // The connection dropped mid-upload. Nothing is wrong on our side.
-        $this->postFile(SampleFile::csv(), error: \UPLOAD_ERR_PARTIAL);
+        $this->api->postFile(SampleFile::csv(), error: \UPLOAD_ERR_PARTIAL);
 
-        $this->assertProblemResponse(Response::HTTP_UNPROCESSABLE_ENTITY);
+        ApiAssert::problem($this->api->response(), Response::HTTP_UNPROCESSABLE_ENTITY);
     }
 
     #[Test]
@@ -150,9 +151,9 @@ final class FileUploadTest extends ApiTestCase
         // "no file was sent" -> 422. Content-Length says otherwise, and 413
         // is both true and actionable; 422 would send the caller hunting for
         // a bug in their multipart encoding.
-        $this->postFileDroppedByPhp($this->maxUploadBytes() * 8);
+        $this->api->postFileDroppedByPhp($this->maxUploadBytes() * 8);
 
-        $this->assertProblemResponse(Response::HTTP_REQUEST_ENTITY_TOO_LARGE);
+        ApiAssert::problem($this->api->response(), Response::HTTP_REQUEST_ENTITY_TOO_LARGE);
     }
 
     #[Test]
@@ -160,18 +161,18 @@ final class FileUploadTest extends ApiTestCase
     public function itRejectsAnEmptyFile(): void
     {
         // Zero bytes is well-formed as a request and useless as a job.
-        $this->postFile(SampleFile::empty());
+        $this->api->postFile(SampleFile::empty());
 
-        $this->assertProblemResponse(Response::HTTP_UNPROCESSABLE_ENTITY);
+        ApiAssert::problem($this->api->response(), Response::HTTP_UNPROCESSABLE_ENTITY);
     }
 
     #[Test]
     #[TestDox('rejects a request with no file part with 422')]
     public function itRejectsARequestWithoutAFile(): void
     {
-        $this->postFileWithoutAttachment();
+        $this->api->postFileWithoutAttachment();
 
-        $this->assertProblemResponse(Response::HTTP_UNPROCESSABLE_ENTITY);
+        ApiAssert::problem($this->api->response(), Response::HTTP_UNPROCESSABLE_ENTITY);
     }
 
     #[Test]

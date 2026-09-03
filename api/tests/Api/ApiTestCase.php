@@ -4,34 +4,31 @@ declare(strict_types=1);
 
 namespace App\Tests\Api;
 
+use App\Tests\Api\Support\ApiAssert;
+use App\Tests\Api\Support\ApiClient;
+use App\Tests\Api\Support\ConversionQueue;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Tools\SchemaTool;
-use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
-use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\Messenger\MessageBusInterface;
-use Symfony\Component\Messenger\Stamp\ReceivedStamp;
-use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
 
 /**
- * Black-box base class for the conversion API.
+ * Wiring for the black-box API tests.
  *
- * The tests below only ever talk HTTP: they know the routes, the status codes
- * and the payload shapes, never the classes behind them. That is deliberate —
- * they are written before the implementation exists and must survive any
- * reasonable way of building it.
+ * This class only composes: it boots the kernel, hands the tests an
+ * {@see ApiClient} to make requests with and a {@see ConversionQueue} to run
+ * the worker, and enforces the one invariant that holds for every test.
+ * Assertions live in {@see ApiAssert}.
  *
- * The single exception is {@see runConversionWorker()}, which drains the
- * Messenger queue in-process. A functional test has no background worker, so
- * something has to stand in for it; keeping that in one method means an
- * implementation that queues work differently only has to touch this file.
+ * The tests themselves only ever talk HTTP — they know routes, status codes and
+ * payload shapes, never the classes behind them, so they are written before the
+ * implementation exists and survive any reasonable way of building it.
  */
 abstract class ApiTestCase extends WebTestCase
 {
-    protected const string TRANSPORT = 'conversions';
+    protected ApiClient $api;
 
-    protected KernelBrowser $client;
+    protected ConversionQueue $queue;
 
     protected function setUp(): void
     {
@@ -39,11 +36,15 @@ abstract class ApiTestCase extends WebTestCase
         // previous one is still up when we get here.
         self::ensureKernelShutdown();
 
-        $this->client = static::createClient();
+        $browser = static::createClient();
 
         // The in-memory transport lives in the container: rebooting the kernel
         // between requests would throw the queued jobs away.
-        $this->client->disableReboot();
+        $browser->disableReboot();
+
+        // Every response is checked for a server error as it arrives.
+        $this->api = new ApiClient($browser, ApiAssert::noServerError(...));
+        $this->queue = new ConversionQueue(static::getContainer());
 
         $this->resetDatabase();
     }
@@ -56,6 +57,12 @@ abstract class ApiTestCase extends WebTestCase
         // their paths when the suite is loaded, so deleting files mid-run would
         // pull the ground out from under tests that have not started yet.
         // tests/bootstrap.php clears the directory once, before anything runs.
+    }
+
+    /** @return array<string, mixed> the last response, decoded */
+    protected function body(): array
+    {
+        return ApiAssert::json($this->api->response());
     }
 
     /**
@@ -71,224 +78,37 @@ abstract class ApiTestCase extends WebTestCase
         return (int) $configured;
     }
 
-    // ---------------------------------------------------------------- requests
+    // ------------------------------------------------------------- shortcuts
 
-    /**
-     * POST /api/files with a multipart body.
-     *
-     * $sentName and $sentMimeType let a test lie about what it is uploading,
-     * which is how "trust the bytes, not the client" gets verified.
-     */
-    protected function postFile(
-        string $path,
-        ?string $sentName = null,
-        ?string $sentMimeType = null,
-        ?int $error = null,
-    ): void {
-        $upload = new UploadedFile(
-            path: $path,
-            originalName: $sentName ?? basename($path),
-            mimeType: $sentMimeType,
-            error: $error,
-            test: true,
-        );
-
-        $this->client->request('POST', '/api/files', files: ['file' => $upload]);
-        $this->assertNoServerError();
-    }
-
-    /**
-     * Reproduces an upload that PHP threw away before the application ran.
-     *
-     * Past post_max_size, PHP discards the whole body: $_POST and $_FILES come
-     * back empty and only Content-Length still says a file was sent.
-     */
-    protected function postFileDroppedByPhp(int $announcedBytes): void
-    {
-        $this->client->request(
-            'POST',
-            '/api/files',
-            server: [
-                'CONTENT_TYPE' => 'multipart/form-data; boundary=----dropped',
-                'CONTENT_LENGTH' => (string) $announcedBytes,
-            ],
-        );
-        $this->assertNoServerError();
-    }
-
-    /** POST /api/files with no `file` part at all. */
-    protected function postFileWithoutAttachment(): void
-    {
-        $this->client->request('POST', '/api/files');
-        $this->assertNoServerError();
-    }
-
-    protected function postConversion(string $fileId, mixed $body): void
-    {
-        $this->client->request(
-            'POST',
-            \sprintf('/api/files/%s/conversions', $fileId),
-            server: ['CONTENT_TYPE' => 'application/json'],
-            content: \is_string($body) ? $body : json_encode($body, \JSON_THROW_ON_ERROR),
-        );
-        $this->assertNoServerError();
-    }
-
-    protected function getConversion(string $conversionId): void
-    {
-        $this->client->request('GET', \sprintf('/api/conversions/%s', $conversionId));
-        $this->assertNoServerError();
-    }
-
-    protected function getConversionResult(string $conversionId): void
-    {
-        $this->client->request('GET', \sprintf('/api/conversions/%s/result', $conversionId));
-        $this->assertNoServerError();
-    }
-
-    // ----------------------------------------------------------- happy shortcuts
+    // These two compose a request and its expected outcome. They are used where
+    // a test needs a file or a conversion to *exist* before it can get to its
+    // own subject; the endpoints themselves are covered on their own elsewhere.
 
     /** Uploads a file, asserts it was accepted, and returns the new file id. */
     protected function uploadFile(string $path): string
     {
-        $this->postFile($path);
+        $this->api->postFile($path);
+
         self::assertResponseStatusCodeSame(
             Response::HTTP_CREATED,
             \sprintf('Expected %s to be accepted as a source file.', basename($path)),
         );
 
-        return $this->responseBody()['id'];
+        return $this->body()['id'];
     }
 
     /** Requests a conversion, asserts it was accepted, and returns its id. */
     protected function requestConversion(string $fileId, string $format): string
     {
-        $this->postConversion($fileId, ['format' => $format]);
+        $this->api->postConversion($fileId, ['format' => $format]);
+
         self::assertResponseStatusCodeSame(
             Response::HTTP_ACCEPTED,
             \sprintf('Expected a conversion to "%s" to be accepted.', $format),
         );
 
-        return $this->responseBody()['id'];
+        return $this->body()['id'];
     }
-
-    // ----------------------------------------------------------------- worker
-
-    /**
-     * Runs every queued conversion job to completion, standing in for the
-     * `messenger:consume conversions` worker that runs in production.
-     */
-    protected function runConversionWorker(): void
-    {
-        $container = static::getContainer();
-
-        $transportId = 'messenger.transport.'.self::TRANSPORT;
-        self::assertTrue(
-            $container->has($transportId),
-            \sprintf('Conversion jobs are expected to be queued on the "%s" transport.', self::TRANSPORT),
-        );
-
-        $transport = $container->get($transportId);
-        self::assertInstanceOf(InMemoryTransport::class, $transport);
-
-        $bus = $container->get(MessageBusInterface::class);
-
-        // A job may legitimately queue follow-up work, so keep going until the
-        // queue is empty rather than draining a single batch.
-        while ([] !== $envelopes = $transport->get()) {
-            foreach ($envelopes as $envelope) {
-                // ReceivedStamp tells the bus to handle the message here
-                // instead of putting it back on the transport.
-                $bus->dispatch($envelope->with(new ReceivedStamp(self::TRANSPORT)));
-                $transport->ack($envelope);
-            }
-        }
-    }
-
-    // ------------------------------------------------------------- assertions
-
-    /**
-     * No request a caller can make may produce a 5xx.
-     *
-     * Every request helper runs this, so a crash surfaces as "the API returned
-     * a server error" at the point it happened, rather than as a confusing
-     * assertion about a status code much further down the test.
-     */
-    protected function assertNoServerError(): void
-    {
-        $status = $this->response()->getStatusCode();
-
-        self::assertLessThan(500, $status, \sprintf(
-            'The API answered %d. A caller must never be able to trigger a server error; '
-            .'anything wrong with a request is a 4xx problem document.',
-            $status,
-        ));
-    }
-
-    protected function response(): Response
-    {
-        return $this->client->getResponse();
-    }
-
-    /** @return array<string, mixed> */
-    protected function responseBody(): array
-    {
-        $content = $this->response()->getContent();
-        self::assertIsString($content);
-
-        $decoded = json_decode($content, true);
-        self::assertIsArray($decoded, \sprintf('Expected a JSON object, got: %s', substr((string) $content, 0, 200)));
-
-        return $decoded;
-    }
-
-    /**
-     * Every error is expected to be an RFC 9457 problem document — a bare
-     * status code is not an explicit error.
-     *
-     * @return array<string, mixed>
-     */
-    protected function assertProblemResponse(int $expectedStatus): array
-    {
-        self::assertResponseStatusCodeSame($expectedStatus);
-        self::assertStringContainsString(
-            'application/problem+json',
-            (string) $this->response()->headers->get('Content-Type'),
-            'Errors are expected to be RFC 9457 problem documents.',
-        );
-
-        $problem = $this->responseBody();
-        self::assertSame($expectedStatus, $problem['status'] ?? null, 'The problem document must echo the status.');
-        self::assertNotEmpty($problem['title'] ?? null, 'The problem document must carry a title.');
-        self::assertNotEmpty($problem['detail'] ?? null, 'The problem document must explain what went wrong.');
-
-        return $problem;
-    }
-
-    /** @return non-empty-string */
-    protected function assertLocationMatches(string $template, string $id): string
-    {
-        $expected = str_replace('{id}', $id, $template);
-        self::assertSame(
-            $expected,
-            $this->response()->headers->get('Location'),
-            'The Location header must point at the resource that was just created.',
-        );
-
-        return $expected;
-    }
-
-    protected function assertIdIsOpaqueAndStable(string $id): void
-    {
-        self::assertNotSame('', $id);
-        self::assertMatchesRegularExpression(
-            '/^[0-9a-zA-Z][0-9a-zA-Z_-]{7,}$/',
-            $id,
-            'Ids are expected to be opaque and URL-safe (a UUID or ULID), never a guessable counter.',
-        );
-    }
-
-    // ------------------------------------------------------------------ setup
 
     private function resetDatabase(): void
     {

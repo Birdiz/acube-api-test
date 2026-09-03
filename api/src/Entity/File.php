@@ -8,6 +8,7 @@ use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Post;
 use App\Controller\UploadFile;
 use App\Conversion\SourceFormat;
+use App\File\FileUploadRequest;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Uid\Ulid;
@@ -24,6 +25,7 @@ use Symfony\Component\Uid\Ulid;
             status: Response::HTTP_CREATED,
             inputFormats: ['multipart' => ['multipart/form-data']],
             controller: UploadFile::class,
+            input: FileUploadRequest::class,
             // The controller writes its own Response: nothing here to deserialize.
             deserialize: false,
             validate: false,

@@ -7,6 +7,7 @@ namespace App\Entity;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Post;
 use App\Controller\RequestConversion;
+use App\Conversion\ConversionRequest;
 use App\Conversion\ConversionStatus;
 use App\Conversion\TargetFormat;
 use Doctrine\ORM\Mapping as ORM;
@@ -21,6 +22,8 @@ use Symfony\Component\Uid\Ulid;
             uriTemplate: '/files/{fileId}/conversions',
             status: Response::HTTP_ACCEPTED,
             controller: RequestConversion::class,
+            input: ConversionRequest::class,
+            inputFormats: ['json' => ['application/json']],
             // As on File: the controller decides the outcome and writes the body.
             deserialize: false,
             validate: false,

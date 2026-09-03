@@ -16,7 +16,7 @@ framework:
             failed: 'doctrine://default?queue_name=failed'
 
         routing:
-            # 'App\Message\RunConversion': conversions
+            'App\Message\RunConversion': conversions
 
 when@test:
     framework:

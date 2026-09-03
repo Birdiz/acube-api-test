@@ -69,6 +69,25 @@ final class SourceFormatTest extends TestCase
     }
 
     #[Test]
+    #[TestDox('maps each case to its published media type')]
+    public function itMapsEachCaseToItsPublishedMediaType(): void
+    {
+        // The only place these strings are written out. Fixtures and the
+        // validator both read the enum, so this is what stops a valid-but-wrong
+        // media type — ODS mapped to the ODT string, say — going unnoticed.
+        self::assertSame(['text/csv'], SourceFormat::Csv->mimeTypes());
+        self::assertSame(['application/json'], SourceFormat::Json->mimeTypes());
+        self::assertSame(
+            ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'],
+            SourceFormat::Xlsx->mimeTypes(),
+        );
+        self::assertSame(
+            ['application/vnd.oasis.opendocument.spreadsheet'],
+            SourceFormat::Ods->mimeTypes(),
+        );
+    }
+
+    #[Test]
     #[TestDox('gives every case at least one MIME type, and shares none')]
     public function itMapsEachCaseToDistinctMimeTypes(): void
     {

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Api\Fixture;
 
+use App\Conversion\SourceFormat;
+
 /**
  * Builds real sample files on disk, one factory method per SourceFormat case
  * and named after its value, so `SampleFile::{$format->value}()` builds any
@@ -12,17 +14,10 @@ namespace App\Tests\Api\Fixture;
  * XLSX and ODS are ZIP containers and the API must tell them apart from a
  * plain archive by their internal layout, so these are proper containers
  * rather than renamed zips — a fixture that cheated here would let a broken
- * type check pass. For the same reason the MIME strings are spelled out to the
- * published specs rather than read from SourceFormat, which would let a wrong
- * value agree with itself.
+ * type check pass.
  */
 final class SampleFile
 {
-    public const string CSV = 'text/csv';
-    public const string JSON = 'application/json';
-    public const string XLSX = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
-    public const string ODS = 'application/vnd.oasis.opendocument.spreadsheet';
-
     /** The rows every sample encodes, so the four source types carry the same data. */
     public const array ROWS = [
         ['id' => '1', 'name' => 'Ada Lovelace', 'role' => 'analyst'],
@@ -103,7 +98,7 @@ final class SampleFile
         $zip = self::openArchive($path);
 
         // OpenDocument requires an uncompressed "mimetype" entry, stored first.
-        $zip->addFromString('mimetype', self::ODS);
+        $zip->addFromString('mimetype', self::odsMediaType());
         $zip->setCompressionName('mimetype', \ZipArchive::CM_STORE);
 
         $zip->addFromString('META-INF/manifest.xml', \sprintf(<<<'XML'
@@ -112,7 +107,7 @@ final class SampleFile
               <manifest:file-entry manifest:full-path="/" manifest:media-type="%s"/>
               <manifest:file-entry manifest:full-path="content.xml" manifest:media-type="text/xml"/>
             </manifest:manifest>
-            XML, self::ODS));
+            XML, self::odsMediaType()));
 
         $zip->addFromString('content.xml', self::openDocumentRows());
         $zip->close();
@@ -205,6 +200,16 @@ final class SampleFile
             .'<office:body><office:spreadsheet><table:table table:name="Sheet1">'
             .$rows
             .'</table:table></office:spreadsheet></office:body></office:document-content>';
+    }
+
+    /**
+     * ODF mandates this string as the archive's first, uncompressed entry, and
+     * it is what libmagic reads to identify the file — so it is the same value
+     * SourceFormat detects by.
+     */
+    private static function odsMediaType(): string
+    {
+        return SourceFormat::Ods->mimeTypes()[0];
     }
 
     private static function openArchive(string $path): \ZipArchive

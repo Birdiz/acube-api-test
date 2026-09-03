@@ -5,17 +5,22 @@ declare(strict_types=1);
 namespace App\Entity;
 
 use ApiPlatform\Metadata\ApiResource;
+use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\Post;
+use App\Controller\DownloadConversionResult;
 use App\Controller\RequestConversion;
+use App\Controller\ShowConversion;
 use App\Conversion\ConversionRequest;
+use App\Conversion\ConversionUri;
 use App\Conversion\ConversionStatus;
 use App\Conversion\TargetFormat;
+use App\Repository\ConversionRepository;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Uid\Ulid;
 
 /** Written before the job is queued, so the address in the 202 resolves at once. */
-#[ORM\Entity]
+#[ORM\Entity(repositoryClass: ConversionRepository::class)]
 #[ApiResource(
     operations: [
         new Post(
@@ -29,6 +34,19 @@ use Symfony\Component\Uid\Ulid;
             validate: false,
             write: false,
             read: false,
+        ),
+        // Status first: an IRI resolves to the first item GET declared.
+        new Get(
+            uriTemplate: ConversionUri::Status->value,
+            controller: ShowConversion::class,
+            read: false,
+            serialize: false,
+        ),
+        new Get(
+            uriTemplate: ConversionUri::Result->value,
+            controller: DownloadConversionResult::class,
+            read: false,
+            serialize: false,
         ),
     ],
 )]
@@ -47,9 +65,6 @@ class Conversion
 
     #[ORM\Column(type: 'string', length: 16, enumType: ConversionStatus::class)]
     private ConversionStatus $status;
-
-    #[ORM\Column(type: 'string', length: 1024, nullable: true)]
-    private ?string $resultPath = null;
 
     #[ORM\Column(type: 'text', nullable: true)]
     private ?string $errorMessage = null;
@@ -74,8 +89,51 @@ class Conversion
         return $this->id;
     }
 
+    public function file(): File
+    {
+        return $this->file;
+    }
+
+    public function targetFormat(): TargetFormat
+    {
+        return $this->targetFormat;
+    }
+
     public function status(): ConversionStatus
     {
         return $this->status;
+    }
+
+    public function createdAt(): \DateTimeImmutable
+    {
+        return $this->createdAt;
+    }
+
+    public function completedAt(): ?\DateTimeImmutable
+    {
+        return $this->completedAt;
+    }
+
+    public function errorMessage(): ?string
+    {
+        return $this->errorMessage;
+    }
+
+    public function markProcessing(): void
+    {
+        $this->status = ConversionStatus::Processing;
+    }
+
+    public function markDone(): void
+    {
+        $this->status = ConversionStatus::Done;
+        $this->completedAt = new \DateTimeImmutable();
+    }
+
+    public function markFailed(string $reason): void
+    {
+        $this->status = ConversionStatus::Failed;
+        $this->errorMessage = $reason;
+        $this->completedAt = new \DateTimeImmutable();
     }
 }

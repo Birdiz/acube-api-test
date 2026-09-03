@@ -6,6 +6,7 @@ namespace App\Controller;
 
 use ApiPlatform\Metadata\IriConverterInterface;
 use App\Conversion\ConversionScheduler;
+use App\Conversion\ConversionUri;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -30,7 +31,11 @@ final class RequestConversion
                 'status' => $conversion->status()->value,
             ],
             Response::HTTP_ACCEPTED,
-            ['Location' => $this->iriConverter->getIriFromResource($conversion)],
+            // Named rather than implied: a conversion has two item GETs.
+            ['Location' => $this->iriConverter->getIriFromResource(
+                $conversion,
+                context: ConversionUri::Status->iriContext(),
+            )],
         );
     }
 }

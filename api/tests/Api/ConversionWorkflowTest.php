@@ -28,25 +28,25 @@ final class ConversionWorkflowTest extends ApiTestCase
     {
         // 1. The customer hands over a file. Its shape and size are unknown to
         //    us until it lands, so this is the step that validates both.
-        $this->api->postFile(SampleFile::xlsx());
+        $response = $this->api->postFile(SampleFile::xlsx());
         self::assertResponseStatusCodeSame(Response::HTTP_CREATED);
-        $fileId = $this->body()['id'];
-        ApiAssert::locationMatches($this->api->response(), '/api/files/{id}', $fileId);
+        $fileId = ApiAssert::json($response)['id'];
+        ApiAssert::locationMatches($response, '/api/files/{id}', $fileId);
 
         // 2. They ask for a conversion. The job runs for minutes, so the answer
         //    is a receipt, not a result.
-        $this->api->postConversion($fileId, ['format' => 'xml']);
+        $response = $this->api->postConversion($fileId, ['format' => 'xml']);
         self::assertResponseStatusCodeSame(Response::HTTP_ACCEPTED);
-        $conversion = $this->body();
+        $conversion = ApiAssert::json($response);
         $conversionId = $conversion['id'];
         self::assertSame('pending', $conversion['status']);
-        $statusUrl = ApiAssert::locationMatches($this->api->response(), '/api/conversions/{id}', $conversionId);
+        $statusUrl = ApiAssert::locationMatches($response, '/api/conversions/{id}', $conversionId);
 
         // 3. They poll the address they were given. Still pending: asking for
         //    the result now is a conflict, not a 404.
-        $this->api->get($statusUrl);
+        $response = $this->api->get($statusUrl);
         self::assertResponseStatusCodeSame(Response::HTTP_OK);
-        self::assertSame('pending', $this->body()['status']);
+        self::assertSame('pending', ApiAssert::json($response)['status']);
 
         $this->api->getConversionResult($conversionId);
         self::assertResponseStatusCodeSame(Response::HTTP_CONFLICT);
@@ -54,14 +54,14 @@ final class ConversionWorkflowTest extends ApiTestCase
         // 4. The worker gets to it.
         $this->queue->drain();
 
-        $this->api->get($statusUrl);
-        self::assertSame('done', $this->body()['status']);
+        $response = $this->api->get($statusUrl);
+        self::assertSame('done', ApiAssert::json($response)['status']);
 
         // 5. And the file is there, as XML.
-        $this->api->getConversionResult($conversionId);
+        $response = $this->api->getConversionResult($conversionId);
         self::assertResponseStatusCodeSame(Response::HTTP_OK);
-        self::assertStringStartsWith('application/xml', (string) $this->api->response()->headers->get('Content-Type'));
-        self::assertNotSame('', (string) $this->api->response()->getContent());
+        self::assertStringStartsWith('application/xml', (string) $response->headers->get('Content-Type'));
+        self::assertNotSame('', (string) $response->getContent());
     }
 
     #[Test]
@@ -94,13 +94,13 @@ final class ConversionWorkflowTest extends ApiTestCase
 
         $this->queue->drain();
 
-        $this->api->getConversionResult($asJson);
+        $response = $this->api->getConversionResult($asJson);
         self::assertResponseStatusCodeSame(Response::HTTP_OK);
-        self::assertStringStartsWith('application/json', (string) $this->api->response()->headers->get('Content-Type'));
+        self::assertStringStartsWith('application/json', (string) $response->headers->get('Content-Type'));
 
-        $this->api->getConversionResult($asXml);
+        $response = $this->api->getConversionResult($asXml);
         self::assertResponseStatusCodeSame(Response::HTTP_OK);
-        self::assertStringStartsWith('application/xml', (string) $this->api->response()->headers->get('Content-Type'));
+        self::assertStringStartsWith('application/xml', (string) $response->headers->get('Content-Type'));
     }
 
     #[Test]
@@ -116,8 +116,8 @@ final class ConversionWorkflowTest extends ApiTestCase
 
         $this->queue->drain();
 
-        $this->api->getConversion($goodConversion);
-        self::assertSame('done', $this->body()['status']);
+        $response = $this->api->getConversion($goodConversion);
+        self::assertSame('done', ApiAssert::json($response)['status']);
     }
 
     #[Test]

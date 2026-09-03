@@ -23,16 +23,14 @@ final class ApiClient
     private readonly \Closure $onResponse;
 
     /**
-     * @param (callable(Response): void)|null $onResponse called with every
-     *        response as it arrives, before the caller sees it
+     * @param callable(Response): void $onResponse called with every response
+     *        as it arrives, before the caller sees it
      */
     public function __construct(
         private readonly KernelBrowser $browser,
-        ?callable $onResponse = null,
+        callable $onResponse,
     ) {
-        $this->onResponse = null !== $onResponse
-            ? $onResponse(...)
-            : static function (Response $response): void {};
+        $this->onResponse = $onResponse(...);
     }
 
     // ------------------------------------------------------------------ files

@@ -59,12 +59,6 @@ abstract class ApiTestCase extends WebTestCase
         // tests/bootstrap.php clears the directory once, before anything runs.
     }
 
-    /** @return array<string, mixed> the last response, decoded */
-    protected function body(): array
-    {
-        return ApiAssert::json($this->api->response());
-    }
-
     /**
      * The configured upload limit, read rather than duplicated: a test that
      * hardcodes it would keep passing after the limit moved.
@@ -87,27 +81,27 @@ abstract class ApiTestCase extends WebTestCase
     /** Uploads a file, asserts it was accepted, and returns the new file id. */
     protected function uploadFile(string $path): string
     {
-        $this->api->postFile($path);
+        $response = $this->api->postFile($path);
 
         self::assertResponseStatusCodeSame(
             Response::HTTP_CREATED,
             \sprintf('Expected %s to be accepted as a source file.', basename($path)),
         );
 
-        return $this->body()['id'];
+        return ApiAssert::json($response)['id'];
     }
 
     /** Requests a conversion, asserts it was accepted, and returns its id. */
     protected function requestConversion(string $fileId, string $format): string
     {
-        $this->api->postConversion($fileId, ['format' => $format]);
+        $response = $this->api->postConversion($fileId, ['format' => $format]);
 
         self::assertResponseStatusCodeSame(
             Response::HTTP_ACCEPTED,
             \sprintf('Expected a conversion to "%s" to be accepted.', $format),
         );
 
-        return $this->body()['id'];
+        return ApiAssert::json($response)['id'];
     }
 
     private function resetDatabase(): void

@@ -28,12 +28,12 @@ final class ConversionStatusTest extends ApiTestCase
         $fileId = $this->uploadFile(SampleFile::csv());
         $conversionId = $this->requestConversion($fileId, 'xml');
 
-        $this->api->getConversion($conversionId);
+        $response = $this->api->getConversion($conversionId);
 
         self::assertResponseStatusCodeSame(Response::HTTP_OK);
         self::assertResponseHeaderSame('Content-Type', 'application/json');
 
-        $body = $this->body();
+        $body = ApiAssert::json($response);
         self::assertSame($conversionId, $body['id'] ?? null);
         self::assertSame('pending', $body['status'] ?? null);
         self::assertSame('xml', $body['format'] ?? null);
@@ -48,11 +48,11 @@ final class ConversionStatusTest extends ApiTestCase
         $fileId = $this->uploadFile(SampleFile::csv());
         $conversionId = $this->requestConversion($fileId, 'json');
 
-        $this->api->getConversion($conversionId);
+        $response = $this->api->getConversion($conversionId);
 
         self::assertStringContainsString(
             'no-store',
-            (string) $this->api->response()->headers->get('Cache-Control'),
+            (string) $response->headers->get('Cache-Control'),
             'A polled status endpoint that can be cached is a status endpoint that lies.',
         );
     }
@@ -64,8 +64,8 @@ final class ConversionStatusTest extends ApiTestCase
         $fileId = $this->uploadFile(SampleFile::json());
         $conversionId = $this->requestConversion($fileId, 'xml');
 
-        $this->api->getConversion($conversionId);
-        $createdAt = $this->body()['created_at'] ?? null;
+        $response = $this->api->getConversion($conversionId);
+        $createdAt = ApiAssert::json($response)['created_at'] ?? null;
 
         self::assertIsString($createdAt);
         self::assertNotFalse(
@@ -83,9 +83,9 @@ final class ConversionStatusTest extends ApiTestCase
 
         $this->queue->drain();
 
-        $this->api->getConversion($conversionId);
+        $response = $this->api->getConversion($conversionId);
 
-        $body = $this->body();
+        $body = ApiAssert::json($response);
         self::assertSame('done', $body['status'] ?? null);
         self::assertArrayHasKey('completed_at', $body, 'A finished job should say when it finished.');
         self::assertNotNull($body['completed_at']);
@@ -98,13 +98,13 @@ final class ConversionStatusTest extends ApiTestCase
         $fileId = $this->uploadFile(SampleFile::ods());
         $conversionId = $this->requestConversion($fileId, 'json');
 
-        $this->api->getConversion($conversionId);
-        $whilePending = $this->body();
+        $response = $this->api->getConversion($conversionId);
+        $whilePending = ApiAssert::json($response);
 
         $this->queue->drain();
 
-        $this->api->getConversion($conversionId);
-        $whenDone = $this->body();
+        $response = $this->api->getConversion($conversionId);
+        $whenDone = ApiAssert::json($response);
 
         self::assertSame($whilePending['id'], $whenDone['id']);
         self::assertSame($whilePending['format'], $whenDone['format']);
@@ -117,8 +117,8 @@ final class ConversionStatusTest extends ApiTestCase
     public function itRejectsAnUnknownConversion(): void
     {
         // Nothing was ever created under this id — 404 is the honest answer.
-        $this->api->getConversion('01JQZ0000000000000000MISSING');
+        $response = $this->api->getConversion('01JQZ0000000000000000MISSING');
 
-        ApiAssert::problem($this->api->response(), Response::HTTP_NOT_FOUND);
+        ApiAssert::problem($response, Response::HTTP_NOT_FOUND);
     }
 }

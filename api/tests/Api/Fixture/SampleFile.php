@@ -19,7 +19,7 @@ final class SampleFile
     public const string XLSX = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
     public const string ODS = 'application/vnd.oasis.opendocument.spreadsheet';
 
-    /** The three rows every sample encodes, so conversions can be checked for content. */
+    /** The rows every sample encodes, so the four source types carry the same data. */
     public const array ROWS = [
         ['id' => '1', 'name' => 'Ada Lovelace', 'role' => 'analyst'],
         ['id' => '2', 'name' => 'Grace Hopper', 'role' => 'admiral'],

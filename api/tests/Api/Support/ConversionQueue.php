@@ -19,7 +19,7 @@ use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
  */
 final class ConversionQueue
 {
-    public const string TRANSPORT = 'conversions';
+    private const string TRANSPORT = 'conversions';
 
     public function __construct(private readonly ContainerInterface $container)
     {

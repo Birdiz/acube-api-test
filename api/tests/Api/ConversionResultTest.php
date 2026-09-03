@@ -30,9 +30,9 @@ final class ConversionResultTest extends ApiTestCase
         $fileId = $this->uploadFile(SampleFile::csv());
         $conversionId = $this->requestConversion($fileId, 'xml');
 
-        $this->api->getConversionResult($conversionId);
+        $response = $this->api->getConversionResult($conversionId);
 
-        $problem = ApiAssert::problem($this->api->response(), Response::HTTP_CONFLICT);
+        $problem = ApiAssert::problem($response, Response::HTTP_CONFLICT);
 
         // "Not ready" and "does not exist" are different problems and the
         // caller reacts differently to each: wait, versus start over.
@@ -50,9 +50,9 @@ final class ConversionResultTest extends ApiTestCase
         $fileId = $this->uploadFile(SampleFile::csv());
         $conversionId = $this->requestConversion($fileId, 'json');
 
-        $this->api->getConversionResult($conversionId);
+        $response = $this->api->getConversionResult($conversionId);
 
-        $problem = ApiAssert::problem($this->api->response(), Response::HTTP_CONFLICT);
+        $problem = ApiAssert::problem($response, Response::HTTP_CONFLICT);
         self::assertSame(
             \sprintf('/api/conversions/%s', $conversionId),
             $problem['status_url'] ?? null,
@@ -68,16 +68,16 @@ final class ConversionResultTest extends ApiTestCase
         $conversionId = $this->requestConversion($fileId, 'json');
 
         $this->queue->drain();
-        $this->api->getConversionResult($conversionId);
+        $response = $this->api->getConversionResult($conversionId);
 
         self::assertResponseStatusCodeSame(Response::HTTP_OK);
         self::assertStringStartsWith(
             'application/json',
-            (string) $this->api->response()->headers->get('Content-Type'),
+            (string) $response->headers->get('Content-Type'),
             'The result is served as what it is, not as a generic blob.',
         );
 
-        $content = (string) $this->api->response()->getContent();
+        $content = (string) $response->getContent();
         self::assertNotSame('', $content, 'A done conversion must have produced something.');
         self::assertJson($content);
     }
@@ -90,15 +90,15 @@ final class ConversionResultTest extends ApiTestCase
         $conversionId = $this->requestConversion($fileId, 'xml');
 
         $this->queue->drain();
-        $this->api->getConversionResult($conversionId);
+        $response = $this->api->getConversionResult($conversionId);
 
         self::assertResponseStatusCodeSame(Response::HTTP_OK);
         self::assertStringStartsWith(
             'application/xml',
-            (string) $this->api->response()->headers->get('Content-Type'),
+            (string) $response->headers->get('Content-Type'),
         );
 
-        $content = (string) $this->api->response()->getContent();
+        $content = (string) $response->getContent();
         self::assertNotSame('', $content);
 
         $previous = libxml_use_internal_errors(true);
@@ -116,11 +116,11 @@ final class ConversionResultTest extends ApiTestCase
         $conversionId = $this->requestConversion($fileId, 'xml');
 
         $this->queue->drain();
-        $this->api->getConversionResult($conversionId);
+        $response = $this->api->getConversionResult($conversionId);
 
         self::assertResponseStatusCodeSame(Response::HTTP_OK);
 
-        $disposition = (string) $this->api->response()->headers->get('Content-Disposition');
+        $disposition = (string) $response->headers->get('Content-Disposition');
         self::assertStringContainsString('attachment', $disposition);
         self::assertMatchesRegularExpression(
             '/filename[^;=]*=(["\']?)[^"\';]+\.xml\1/',
@@ -138,21 +138,21 @@ final class ConversionResultTest extends ApiTestCase
 
         $this->queue->drain();
 
-        $this->api->getConversionResult($conversionId);
+        $response = $this->api->getConversionResult($conversionId);
         self::assertResponseStatusCodeSame(Response::HTTP_OK);
-        $first = $this->api->response()->getContent();
+        $first = $response->getContent();
 
-        $this->api->getConversionResult($conversionId);
+        $response = $this->api->getConversionResult($conversionId);
         self::assertResponseStatusCodeSame(Response::HTTP_OK, 'Fetching a result must not consume it.');
-        self::assertSame($first, $this->api->response()->getContent());
+        self::assertSame($first, $response->getContent());
     }
 
     #[Test]
     #[TestDox('rejects an unknown conversion id with 404')]
     public function itRejectsAnUnknownConversion(): void
     {
-        $this->api->getConversionResult('01JQZ0000000000000000MISSING');
+        $response = $this->api->getConversionResult('01JQZ0000000000000000MISSING');
 
-        ApiAssert::problem($this->api->response(), Response::HTTP_NOT_FOUND);
+        ApiAssert::problem($response, Response::HTTP_NOT_FOUND);
     }
 }

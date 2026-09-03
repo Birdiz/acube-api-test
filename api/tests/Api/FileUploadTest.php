@@ -26,10 +26,9 @@ final class FileUploadTest extends ApiTestCase
     /** @return iterable<string, array{string}> */
     public static function supportedSourceFiles(): iterable
     {
-        yield 'CSV' => [SampleFile::csv()];
-        yield 'JSON' => [SampleFile::json()];
-        yield 'XLSX' => [SampleFile::xlsx()];
-        yield 'ODS' => [SampleFile::ods()];
+        foreach (SampleFile::SOURCE_TYPES as $label => $build) {
+            yield $label => [SampleFile::$build()];
+        }
     }
 
     #[Test]

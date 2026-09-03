@@ -26,11 +26,18 @@ use Symfony\Component\HttpFoundation\Response;
 final class ConversionRequestTest extends ApiTestCase
 {
 
-    /** @return iterable<string, array{string, string}> */
+    /** The output formats the API is expected to accept. */
+    private const array TARGET_FORMATS = ['json', 'xml'];
+
+    /**
+     * Every supported source type, crossed with every supported output.
+     *
+     * @return iterable<string, array{string, string}>
+     */
     public static function supportedCouples(): iterable
     {
-        foreach (['CSV' => 'csv', 'JSON' => 'json', 'XLSX' => 'xlsx', 'ODS' => 'ods'] as $label => $source) {
-            foreach (['json', 'xml'] as $target) {
+        foreach (SampleFile::SOURCE_TYPES as $label => $source) {
+            foreach (self::TARGET_FORMATS as $target) {
                 yield \sprintf('%s to %s', $label, strtoupper($target)) => [$source, $target];
             }
         }
@@ -146,7 +153,7 @@ final class ConversionRequestTest extends ApiTestCase
             $problem,
             'A 422 that does not say what *is* allowed makes the caller guess.',
         );
-        self::assertEqualsCanonicalizing(['json', 'xml'], $problem['supported_formats']);
+        self::assertEqualsCanonicalizing(self::TARGET_FORMATS, $problem['supported_formats']);
     }
 
     #[Test]

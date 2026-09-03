@@ -56,6 +56,21 @@ The interesting ones are where the obvious answer is wrong.
 | Empty file, no `file` part, no `format` | `422` | Well-formed request, unusable content. |
 | Malformed JSON | `400` | Unparseable, so there is nothing to validate. |
 
+### Where these live
+
+`SourceFormat` and `TargetFormat` (`src/Conversion/`) are the single spelling of
+what the API accepts and produces. `TargetFormat::fromRequest()` normalises what
+a caller sent and `SourceFormat::fromMimeType()` resolves what they actually
+uploaded; both throw rather than returning null, because "unsupported" is
+information the caller needs, not an absent value.
+
+Those throws are `ConversionProblem` subclasses, and each one carries everything
+its problem document needs — status, type, title, and any extension that makes
+it actionable, such as the `supported_formats` on a rejected format. Rendering
+is therefore one place, and the code that detects a problem is the code that
+decides what the caller is told. A failure that is *not* a `ConversionProblem`
+is ours, and is the only thing allowed to become a 5xx.
+
 All errors are RFC 9457 problem documents, and **nothing a caller can send may
 produce a 5xx**: a malformed, oversized or hostile request is always a 4xx that
 explains itself. `ApiAssert::noServerError()` runs on every response as it arrives, so a

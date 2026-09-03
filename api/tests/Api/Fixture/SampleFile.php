@@ -11,6 +11,14 @@ namespace App\Tests\Api\Fixture;
  * from a plain archive by their internal layout — so these are built as proper
  * containers rather than as renamed zips. A fixture that cheats here would let
  * a broken type check pass.
+ *
+ * One factory method per SourceFormat case, named after its value, so
+ * `SampleFile::{$format->value}()` builds a sample of any supported type.
+ *
+ * The MIME strings below are spelled out rather than read from SourceFormat:
+ * these files are built to the published OASIS and OOXML specs, and generating
+ * a fixture from the same constant the validator checks against would let a
+ * wrong value agree with itself.
  */
 final class SampleFile
 {
@@ -18,18 +26,6 @@ final class SampleFile
     public const string JSON = 'application/json';
     public const string XLSX = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
     public const string ODS = 'application/vnd.oasis.opendocument.spreadsheet';
-
-    /**
-     * The source types the API accepts, as label => the factory method here
-     * that builds one. Data providers iterate this, so a fifth supported type
-     * is added in one place.
-     */
-    public const array SOURCE_TYPES = [
-        'CSV' => 'csv',
-        'JSON' => 'json',
-        'XLSX' => 'xlsx',
-        'ODS' => 'ods',
-    ];
 
     /** The rows every sample encodes, so the four source types carry the same data. */
     public const array ROWS = [

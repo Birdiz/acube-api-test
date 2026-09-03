@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Api;
 
+use App\Conversion\SourceFormat;
+use App\Conversion\TargetFormat;
 use App\Tests\Api\Fixture\SampleFile;
 use App\Tests\Api\Support\ApiAssert;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -26,9 +28,6 @@ use Symfony\Component\HttpFoundation\Response;
 final class ConversionRequestTest extends ApiTestCase
 {
 
-    /** The output formats the API is expected to accept. */
-    private const array TARGET_FORMATS = ['json', 'xml'];
-
     /**
      * Every supported source type, crossed with every supported output.
      *
@@ -36,9 +35,11 @@ final class ConversionRequestTest extends ApiTestCase
      */
     public static function supportedCouples(): iterable
     {
-        foreach (SampleFile::SOURCE_TYPES as $label => $source) {
-            foreach (self::TARGET_FORMATS as $target) {
-                yield \sprintf('%s to %s', $label, strtoupper($target)) => [$source, $target];
+        foreach (SourceFormat::cases() as $source) {
+            foreach (TargetFormat::cases() as $target) {
+                $name = \sprintf('%s to %s', strtoupper($source->value), strtoupper($target->value));
+
+                yield $name => [$source->value, $target->value];
             }
         }
     }
@@ -153,7 +154,10 @@ final class ConversionRequestTest extends ApiTestCase
             $problem,
             'A 422 that does not say what *is* allowed makes the caller guess.',
         );
-        self::assertEqualsCanonicalizing(self::TARGET_FORMATS, $problem['supported_formats']);
+        // Spelled out on purpose. This is the contract the customer codes
+        // against; asserting it against the same enum the implementation reads
+        // would agree with itself no matter what either one said.
+        self::assertEqualsCanonicalizing(['json', 'xml'], $problem['supported_formats']);
     }
 
     #[Test]

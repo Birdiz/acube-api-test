@@ -103,8 +103,9 @@ make exec CMD="php bin/phpunit"
 
 The suite is written against the HTTP contract only — routes, status codes and
 payload shapes — so it describes the API without depending on how it is built.
-It is currently **red on purpose**: the tests came first, the implementation has
-not been written yet.
+The API tests are **red on purpose**: they came first, and the endpoints do not
+exist yet. The unit tests covering `src/Conversion/` pass, since that vocabulary
+is written.
 
 | Test class | What it pins down |
 | --- | --- |
@@ -113,6 +114,7 @@ not been written yet.
 | `ConversionStatusTest` | `GET /api/conversions/{id}`: the resource the `202` points at |
 | `ConversionResultTest` | `GET /api/conversions/{id}/result`: the file, and `409` when it is not ready |
 | `ConversionWorkflowTest` | The four steps end to end, as a client actually walks them |
+| `SourceFormatTest`, `TargetFormatTest` | The format vocabulary in `src/Conversion/` — these pass already |
 
 Conversion jobs are queued on the `conversions` Messenger transport. In
 production a worker consumes it:

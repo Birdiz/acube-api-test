@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Api;
 
+use App\Conversion\SourceFormat;
 use App\Tests\Api\Fixture\SampleFile;
 use App\Tests\Api\Support\ApiAssert;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -26,8 +27,8 @@ final class FileUploadTest extends ApiTestCase
     /** @return iterable<string, array{string}> */
     public static function supportedSourceFiles(): iterable
     {
-        foreach (SampleFile::SOURCE_TYPES as $label => $build) {
-            yield $label => [SampleFile::$build()];
+        foreach (SourceFormat::cases() as $format) {
+            yield strtoupper($format->value) => [SampleFile::{$format->value}()];
         }
     }
 

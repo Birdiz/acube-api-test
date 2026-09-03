@@ -11,6 +11,7 @@ use App\File\Exception\MissingFilePart;
 use App\File\Exception\PartialUpload;
 use App\File\Exception\UploadTooLarge;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
+use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\Request;
 
@@ -25,6 +26,7 @@ final class FileUpload
         private readonly int $maxSizeBytes,
         #[Autowire('%kernel.project_dir%/var/uploads')]
         private readonly string $directory,
+        private readonly Filesystem $filesystem,
     ) {
     }
 
@@ -39,8 +41,7 @@ final class FileUpload
 
         $file = new File($this->filename($upload), $format, $size);
 
-        $this->ensureDirectoryExists();
-        $this->streamToStorage($upload, $this->pathFor($file));
+        $this->store($upload, $this->pathFor($file));
 
         return $file;
     }
@@ -142,22 +143,9 @@ final class FileUpload
         return $detected;
     }
 
-    /** A filesystem copy: the bytes never pass through PHP's memory. */
-    private function streamToStorage(UploadedFile $upload, string $destination): void
+    /** Creates the directory, streams the bytes, and throws on its own if either fails. */
+    private function store(UploadedFile $upload, string $destination): void
     {
-        if (!copy($upload->getPathname(), $destination)) {
-            throw new \RuntimeException(\sprintf('Could not store the upload at "%s".', $destination));
-        }
-    }
-
-    private function ensureDirectoryExists(): void
-    {
-        if (is_dir($this->directory)) {
-            return;
-        }
-
-        if (!mkdir($this->directory, 0o775, true) && !is_dir($this->directory)) {
-            throw new \RuntimeException(\sprintf('Could not create "%s".', $this->directory));
-        }
+        $this->filesystem->copy($upload->getPathname(), $destination);
     }
 }

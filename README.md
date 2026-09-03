@@ -3,6 +3,15 @@
 A Symfony 8.1 / API Platform 4.3 API running on FrankenPHP, orchestrated with
 Docker Compose and driven through a small Makefile.
 
+It converts uploaded files (CSV, JSON, XLSX, ODS) into JSON or XML. The
+conversion takes longer than a request can wait, so it runs as a background job:
+`POST` returns `202 Accepted` with a URL to poll.
+
+See [docs/architecture.md](docs/architecture.md) for why the API is shaped that
+way — the `202` decision, the status codes it forces (notably `409` rather than
+`404` for a result that is not ready yet), and how the file type and size are
+validated.
+
 ## Installation
 
 ### Prerequisites
@@ -85,6 +94,38 @@ make exec
 
 The last one drops you into a shell inside the container, where `composer` and
 `bin/console` are on the `PATH`.
+
+### Running the tests
+
+```bash
+make exec CMD="php bin/phpunit"
+```
+
+The suite is written against the HTTP contract only — routes, status codes and
+payload shapes — so it describes the API without depending on how it is built.
+The API tests are **red on purpose**: they came first, and the endpoints do not
+exist yet. The unit tests covering `src/Conversion/` pass, since that vocabulary
+is written.
+
+| Test class | What it pins down |
+| --- | --- |
+| `FileUploadTest` | `POST /api/files`: accepted types, type detection from content, the size limit |
+| `ConversionRequestTest` | `POST /api/files/{id}/conversions`: the `202`, and rejecting the impossible up front |
+| `ConversionStatusTest` | `GET /api/conversions/{id}`: the resource the `202` points at |
+| `ConversionResultTest` | `GET /api/conversions/{id}/result`: the file, and `409` when it is not ready |
+| `ConversionWorkflowTest` | The four steps end to end, as a client actually walks them |
+| `SourceFormatTest`, `TargetFormatTest` | The format vocabulary in `src/Conversion/` — these pass already |
+
+Conversion jobs are queued on the `conversions` Messenger transport. In
+production a worker consumes it:
+
+```bash
+make exec CMD="php bin/console messenger:consume conversions"
+```
+
+In tests the transport is in-memory and drained explicitly, which is what makes
+"not ready" and "ready" two ordered states instead of a race. See
+[docs/architecture.md](docs/architecture.md#in-tests).
 
 ### Resetting the environment
 

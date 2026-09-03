@@ -1,0 +1,28 @@
+framework:
+    messenger:
+        failure_transport: failed
+
+        transports:
+            # Conversion jobs are long-running: they never run inside the
+            # request/response cycle. See docs/architecture.md.
+            conversions:
+                dsn: '%env(MESSENGER_TRANSPORT_DSN)%'
+                options:
+                    queue_name: conversions
+                retry_strategy:
+                    max_retries: 3
+                    delay: 5000
+                    multiplier: 3
+            failed: 'doctrine://default?queue_name=failed'
+
+        routing:
+            # 'App\Message\RunConversion': conversions
+
+when@test:
+    framework:
+        messenger:
+            transports:
+                # Held in memory so tests can assert on a *pending* conversion
+                # and then drain the queue explicitly. See tests/Api/ApiTestCase.
+                conversions: 'in-memory://'
+                failed: 'in-memory://'

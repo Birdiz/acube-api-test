@@ -8,19 +8,17 @@ use PHPUnit\Framework\Assert;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * Assertions about what the conversion API sent back.
- *
- * These are the rules that hold across endpoints — how an error is shaped, what
- * an id looks like, where a Location points — kept apart from the client that
- * makes the requests so each can be read on its own.
+ * The rules that hold across endpoints — how an error is shaped, what an id
+ * looks like, where a Location points — kept apart from the client so each can
+ * be read on its own.
  */
 final class ApiAssert extends Assert
 {
     /**
-     * Every error is expected to be an RFC 9457 problem document: a bare status
-     * code is not an explicit error.
+     * A bare status code is not an explicit error, so every failure is expected
+     * to be an RFC 9457 problem document.
      *
-     * @return array<string, mixed> the problem document, for further assertions
+     * @return array<string, mixed>
      */
     public static function problem(Response $response, int $expectedStatus): array
     {
@@ -81,13 +79,11 @@ final class ApiAssert extends Assert
     }
 
     /**
-     * Nothing a caller can send may produce a 5xx: anything wrong with a
-     * request is a 4xx problem document. A 5xx is reserved for faults that are
-     * genuinely ours, where changing the request would not help.
+     * Nothing a caller can send may produce a 5xx; that is reserved for faults
+     * where changing the request would not help.
      *
-     * Checked as each response arrives rather than at the end of the test, so
-     * a crash is reported where it happened and is not masked by whatever
-     * assertion would have failed next.
+     * Checked as each response arrives, so a crash is reported where it
+     * happened rather than masked by whatever assertion would fail next.
      */
     public static function noServerError(Response $response): void
     {

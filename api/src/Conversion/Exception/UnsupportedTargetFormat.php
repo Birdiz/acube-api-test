@@ -6,7 +6,6 @@ namespace App\Conversion\Exception;
 
 use App\Conversion\TargetFormat;
 
-/** The caller asked for an output format we do not produce. */
 final class UnsupportedTargetFormat extends ConversionProblem
 {
     public static function forRequested(string $requested): self

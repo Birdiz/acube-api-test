@@ -34,8 +34,6 @@ final class ConversionResultTest extends ApiTestCase
 
         $problem = ApiAssert::problem($response, Response::HTTP_CONFLICT);
 
-        // "Not ready" and "does not exist" are different problems and the
-        // caller reacts differently to each: wait, versus start over.
         self::assertSame(
             'pending',
             $problem['conversion_status'] ?? null,

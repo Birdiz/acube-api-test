@@ -116,7 +116,6 @@ final class ConversionStatusTest extends ApiTestCase
     #[TestDox('rejects an unknown conversion id with 404')]
     public function itRejectsAnUnknownConversion(): void
     {
-        // Nothing was ever created under this id — 404 is the honest answer.
         $response = $this->api->getConversion('01JQZ0000000000000000MISSING');
 
         ApiAssert::problem($response, Response::HTTP_NOT_FOUND);

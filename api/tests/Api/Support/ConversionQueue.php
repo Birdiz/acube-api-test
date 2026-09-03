@@ -10,12 +10,9 @@ use Symfony\Component\Messenger\Stamp\ReceivedStamp;
 use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
 
 /**
- * Stands in for the `messenger:consume conversions` worker.
- *
- * A functional test has no background process, so without this "pending" and
- * "done" would be a race against a sleep instead of two states a test can put
- * in order. Keeping it in one class means a different queueing choice touches
- * one file, not every test.
+ * Stands in for the `messenger:consume conversions` worker, which a functional
+ * test has no background process to run. Without it, "pending" and "done"
+ * would be a race against a sleep rather than two states a test can order.
  */
 final class ConversionQueue
 {
@@ -25,18 +22,15 @@ final class ConversionQueue
     {
     }
 
-    /** Runs every queued conversion job to completion. */
     public function drain(): void
     {
         $transport = $this->transport();
         $bus = $this->container->get(MessageBusInterface::class);
 
-        // A job may legitimately queue follow-up work, so keep going until the
-        // queue is empty rather than draining a single batch.
+        // A job may queue follow-up work, so drain until the queue is empty.
         while ([] !== $envelopes = $transport->get()) {
             foreach ($envelopes as $envelope) {
-                // ReceivedStamp tells the bus to handle the message here
-                // instead of putting it back on the transport.
+                // ReceivedStamp stops the bus putting it back on the transport.
                 $bus->dispatch($envelope->with(new ReceivedStamp(self::TRANSPORT)));
                 $transport->ack($envelope);
             }
@@ -47,8 +41,7 @@ final class ConversionQueue
     {
         $id = 'messenger.transport.'.self::TRANSPORT;
 
-        // A missing transport is a broken harness, not a failing expectation,
-        // so this throws rather than asserting.
+        // A broken harness, not a failing expectation: throw, don't assert.
         if (!$this->container->has($id)) {
             throw new \LogicException(\sprintf(
                 'Conversion jobs are expected to be queued on the "%s" transport.',

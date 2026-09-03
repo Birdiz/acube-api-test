@@ -11,12 +11,10 @@ use PHPUnit\Framework\Attributes\TestDox;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * The whole conversation, end to end.
+ * The whole conversation, end to end: upload, ask, poll, collect.
  *
- * The endpoint tests above each pin down one rule. This one reads the way the
- * customer's client actually behaves: upload, ask, poll, collect — and shows
- * that the four steps compose, that the customer is never blocked, and that
- * nothing needs to be known about the file up front.
+ * The endpoint tests each pin down one rule; this one shows the four steps
+ * compose and that the customer is never blocked.
  */
 #[TestDox('The conversion workflow')]
 final class ConversionWorkflowTest extends ApiTestCase
@@ -134,7 +132,6 @@ final class ConversionWorkflowTest extends ApiTestCase
 
         $this->queue->drain();
 
-        // Nothing was queued, so nothing ran, so nothing failed.
         $this->api->getConversion($fileId);
         self::assertResponseStatusCodeSame(
             Response::HTTP_NOT_FOUND,

@@ -28,11 +28,7 @@ use Symfony\Component\HttpFoundation\Response;
 final class ConversionRequestTest extends ApiTestCase
 {
 
-    /**
-     * Every supported source type, crossed with every supported output.
-     *
-     * @return iterable<string, array{string, string}>
-     */
+    /** @return iterable<string, array{string, string}> */
     public static function supportedCouples(): iterable
     {
         foreach (SourceFormat::cases() as $source) {
@@ -154,9 +150,8 @@ final class ConversionRequestTest extends ApiTestCase
             $problem,
             'A 422 that does not say what *is* allowed makes the caller guess.',
         );
-        // Spelled out on purpose. This is the contract the customer codes
-        // against; asserting it against the same enum the implementation reads
-        // would agree with itself no matter what either one said.
+        // Spelled out on purpose: asserting the contract against the same enum
+        // the implementation reads would agree with itself either way.
         self::assertEqualsCanonicalizing(['json', 'xml'], $problem['supported_formats']);
     }
 

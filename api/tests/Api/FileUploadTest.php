@@ -123,10 +123,9 @@ final class FileUploadTest extends ApiTestCase
     #[TestDox('reports a file PHP itself refused as 413, not a crash')]
     public function itMapsPhpsOwnSizeErrorToAClientError(): void
     {
-        // The app limit is pinned to PHP's upload_max_filesize, so the two
-        // fire at the same boundary and PHP may well get there first. When it
-        // does, the file on disk is empty or partial and unreadable: touching
-        // it before checking the error code is how this becomes a 500.
+        // The app limit is pinned to PHP's, so PHP may get there first — and
+        // then the temp file is empty or partial. Reading it before checking
+        // the error code is how this becomes a 500.
         $response = $this->api->postFile(SampleFile::csv(), error: \UPLOAD_ERR_INI_SIZE);
 
         $problem = ApiAssert::problem($response, Response::HTTP_REQUEST_ENTITY_TOO_LARGE);
@@ -149,8 +148,7 @@ final class FileUploadTest extends ApiTestCase
     {
         // Past post_max_size PHP empties $_FILES, so the naive reading is
         // "no file was sent" -> 422. Content-Length says otherwise, and 413
-        // is both true and actionable; 422 would send the caller hunting for
-        // a bug in their multipart encoding.
+        // spares the caller hunting for a bug in their multipart encoding.
         $response = $this->api->postFileDroppedByPhp($this->maxUploadBytes() * 8);
 
         ApiAssert::problem($response, Response::HTTP_REQUEST_ENTITY_TOO_LARGE);

@@ -13,16 +13,8 @@ use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * Wiring for the black-box API tests.
- *
- * This class only composes: it boots the kernel, hands the tests an
- * {@see ApiClient} to make requests with and a {@see ConversionQueue} to run
- * the worker, and enforces the one invariant that holds for every test.
- * Assertions live in {@see ApiAssert}.
- *
- * The tests themselves only ever talk HTTP — they know routes, status codes and
- * payload shapes, never the classes behind them, so they are written before the
- * implementation exists and survive any reasonable way of building it.
+ * Composition only: requests go through {@see ApiClient}, assertions live in
+ * {@see ApiAssert}, the worker is {@see ConversionQueue}.
  */
 abstract class ApiTestCase extends WebTestCase
 {
@@ -32,17 +24,14 @@ abstract class ApiTestCase extends WebTestCase
 
     protected function setUp(): void
     {
-        // Each test gets a fresh kernel; disableReboot() below means the
-        // previous one is still up when we get here.
+        // disableReboot() below leaves the previous kernel up.
         self::ensureKernelShutdown();
 
         $browser = static::createClient();
 
-        // The in-memory transport lives in the container: rebooting the kernel
-        // between requests would throw the queued jobs away.
+        // The queued jobs live in the container, so a reboot would drop them.
         $browser->disableReboot();
 
-        // Every response is checked for a server error as it arrives.
         $this->api = new ApiClient($browser, ApiAssert::noServerError(...));
         $this->queue = new ConversionQueue(static::getContainer());
 
@@ -53,10 +42,9 @@ abstract class ApiTestCase extends WebTestCase
     {
         parent::tearDown();
 
-        // Fixtures are deliberately *not* removed here: data providers resolve
-        // their paths when the suite is loaded, so deleting files mid-run would
-        // pull the ground out from under tests that have not started yet.
-        // tests/bootstrap.php clears the directory once, before anything runs.
+        // Fixtures are *not* cleaned up here. Data providers resolve their
+        // paths while the suite loads, so deleting files mid-run would break
+        // tests that have not started. bootstrap.php clears them once.
     }
 
     /**
@@ -72,13 +60,9 @@ abstract class ApiTestCase extends WebTestCase
         return (int) $configured;
     }
 
-    // ------------------------------------------------------------- shortcuts
+    // The two below give a test the file or conversion it needs to *exist*
+    // before reaching its own subject. Both endpoints are covered on their own.
 
-    // These two compose a request and its expected outcome. They are used where
-    // a test needs a file or a conversion to *exist* before it can get to its
-    // own subject; the endpoints themselves are covered on their own elsewhere.
-
-    /** Uploads a file, asserts it was accepted, and returns the new file id. */
     protected function uploadFile(string $path): string
     {
         $response = $this->api->postFile($path);
@@ -91,7 +75,6 @@ abstract class ApiTestCase extends WebTestCase
         return ApiAssert::json($response)['id'];
     }
 
-    /** Requests a conversion, asserts it was accepted, and returns its id. */
     protected function requestConversion(string $fileId, string $format): string
     {
         $response = $this->api->postConversion($fileId, ['format' => $format]);

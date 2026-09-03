@@ -7,8 +7,6 @@ namespace App\Conversion;
 use App\Conversion\Exception\UnsupportedSourceFormat;
 
 /**
- * A file format the API accepts as input.
- *
  * The case values double as the canonical short names used in URLs, messages
  * and fixtures, so there is one spelling of "xlsx" in the project.
  */
@@ -20,12 +18,9 @@ enum SourceFormat: string
     case Ods = 'ods';
 
     /**
-     * The MIME types that identify this format, as reported by `finfo` reading
-     * the file's magic bytes — never as claimed by the client.
-     *
-     * Deliberately strict: `text/plain` is not accepted for CSV, even though
-     * libmagic reports it for delimiter-poor files. Widening that is a decision
-     * to take on purpose, with a test, rather than by accident.
+     * As reported by `finfo` reading the magic bytes, never as claimed by the
+     * client. Deliberately strict: `text/plain` is not accepted for CSV, even
+     * though libmagic reports it for delimiter-poor files.
      *
      * @return non-empty-list<string>
      */
@@ -39,7 +34,7 @@ enum SourceFormat: string
         };
     }
 
-    /** @throws UnsupportedSourceFormat when nothing here matches */
+    /** @throws UnsupportedSourceFormat */
     public static function fromMimeType(string $mimeType): self
     {
         foreach (self::cases() as $format) {

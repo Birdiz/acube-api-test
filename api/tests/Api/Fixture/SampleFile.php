@@ -5,20 +5,16 @@ declare(strict_types=1);
 namespace App\Tests\Api\Fixture;
 
 /**
- * Builds real sample files on disk.
+ * Builds real sample files on disk, one factory method per SourceFormat case
+ * and named after its value, so `SampleFile::{$format->value}()` builds any
+ * supported type.
  *
- * XLSX and ODS are ZIP containers, and the API is expected to tell them apart
- * from a plain archive by their internal layout — so these are built as proper
- * containers rather than as renamed zips. A fixture that cheats here would let
- * a broken type check pass.
- *
- * One factory method per SourceFormat case, named after its value, so
- * `SampleFile::{$format->value}()` builds a sample of any supported type.
- *
- * The MIME strings below are spelled out rather than read from SourceFormat:
- * these files are built to the published OASIS and OOXML specs, and generating
- * a fixture from the same constant the validator checks against would let a
- * wrong value agree with itself.
+ * XLSX and ODS are ZIP containers and the API must tell them apart from a
+ * plain archive by their internal layout, so these are proper containers
+ * rather than renamed zips — a fixture that cheated here would let a broken
+ * type check pass. For the same reason the MIME strings are spelled out to the
+ * published specs rather than read from SourceFormat, which would let a wrong
+ * value agree with itself.
  */
 final class SampleFile
 {
@@ -169,8 +165,6 @@ final class SampleFile
             @unlink($file);
         }
     }
-
-    // ----------------------------------------------------------------- internals
 
     private static function spreadsheetMlRows(): string
     {

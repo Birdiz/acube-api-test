@@ -6,7 +6,6 @@ namespace App\Conversion\Exception;
 
 use App\Conversion\SourceFormat;
 
-/** The uploaded file is not a type we can convert from. */
 final class UnsupportedSourceFormat extends ConversionProblem
 {
     public static function forMimeType(string $mimeType): self

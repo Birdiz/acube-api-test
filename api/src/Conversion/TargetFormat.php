@@ -6,13 +6,11 @@ namespace App\Conversion;
 
 use App\Conversion\Exception\UnsupportedTargetFormat;
 
-/** A file format the API can convert to. */
 enum TargetFormat: string
 {
     case Json = 'json';
     case Xml = 'xml';
 
-    /** What the converted file is served as. */
     public function contentType(): string
     {
         return match ($this) {
@@ -22,11 +20,10 @@ enum TargetFormat: string
     }
 
     /**
-     * Resolves what a caller asked for, case-insensitively: "XML" is as
-     * reasonable a thing to send as "xml".
+     * Case-insensitive: "XML" is as reasonable a thing to send as "xml".
      *
-     * @throws UnsupportedTargetFormat so the couple is refused at request time
-     *         rather than by a job that fails two minutes later
+     * @throws UnsupportedTargetFormat so an impossible couple is refused at
+     *         request time rather than by a job that fails two minutes later
      */
     public static function fromRequest(string $requested): self
     {

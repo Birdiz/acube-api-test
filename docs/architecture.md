@@ -38,8 +38,10 @@ Each of these is pinned by a test:
   `422` on this request, not a job that runs for two minutes and ends `failed`.
 - **The `Location` is real immediately.** The record is written in the same
   transaction that accepts the request; the job is queued after it.
-- **The status resource is honest while pending** — `no-store`, same shape in
-  every state.
+- **The status resource is honest while pending** — `no-store`, and the same
+  shape in every state: `id`, `status`, `format`, `file_id`, `created_at`,
+  `completed_at` and `error` on every response, carrying `null` rather than
+  going missing. A caller learns from the values, not from which keys turned up.
 
 ## Status codes
 
@@ -49,6 +51,8 @@ The interesting ones are where the obvious answer is wrong.
 | --- | --- | --- |
 | Conversion accepted | `202` | Not `201` — a record exists, but the thing asked for does not yet. |
 | Result requested too early | `409` | **Not `404`.** The conversion exists; we handed the caller its id. `404` invites restarting the flow. `409` says the resource is real but its state does not permit this, and waiting fixes it — so the body carries `conversion_status` and `status_url`. |
+| Result of a `failed` conversion | `409` | The same conflict, and deliberately not a second code: the resource is real and its state forbids the request. `conversion_status` is what discriminates, so a client keeps one branch, and the `detail` says waiting will not help rather than inviting a poll that can never succeed. |
+| Unknown conversion id | `404` | Nothing was ever handed out under it. Unlike the above, no state will make it work. |
 | Unsupported couple | `422` | Returned from the `POST`, not discovered later. Syntactically fine, semantically impossible. Body lists `supported_formats`. |
 | Unknown `fileId` | `404` | It is in the path, so it identifies the resource being acted on. Checked before the body. |
 | Unsupported file type | `415` | From magic bytes — a `.csv` name on a PDF is still a PDF. |
@@ -132,13 +136,34 @@ Raising the limit therefore means raising `upload_max_filesize` and
 ## Execution
 
 Jobs go to the `conversions` Messenger transport, consumed by a worker
-(`php bin/console messenger:consume conversions`). The transport is `doctrine://`
+(`php bin/console messenger:consume conversions`) that runs
+`RunConversionHandler` → `ConversionRunner`. The transport is `doctrine://`
 so enqueueing and recording the conversion commit together: no `pending`
-conversion without a job, no job for a rolled-back conversion. Failures retry
-three times before landing on `failed`.
+conversion without a job, no job for a rolled-back conversion.
+
+A job moves `pending → processing → done`. A redelivery of one already `done`
+or `failed` is acknowledged and dropped rather than redone: the result has been
+handed out, and its bytes must not change under a caller who fetched them.
+That is also why `processing` is written down — it is what tells a redelivery
+of a half-run job apart from a first delivery. `redeliver_timeout` bounds how
+long a worker killed mid-job holds the message.
+
+Failures retry three times before landing on `failed`, which is written once,
+by a listener on `WorkerMessageFailedEvent` when the retries are spent — not on
+each attempt, so a caller polling through the backoff is never told a job is
+over that is about to succeed. The stored message is a sentence meant for the
+caller; the throwable itself goes to the log and the `failed` transport.
 
 The conversion itself is a stub — the exercise is the lifecycle, not the
-contents.
+contents. The worker never opens the source file: it writes what the job knows
+about itself, encoded in the format that was asked for, so a JSON conversion is
+valid JSON and an XML one is well-formed XML. The bytes land at
+`var/results/{conversionId}`, derived from the id for the same reason an
+upload's path is — one rule for locating bytes, not two. The result is read
+whole rather than streamed (it is bounded by the upload limit it came from) and
+its media type is fixed by the conversion rather than negotiated: the format was
+chosen when the job was requested. `no-store` is on the status alone; a finished
+result never changes.
 
 ### In tests
 
@@ -151,6 +176,18 @@ $this->api->getConversionResult($id);  // 409, still pending
 $this->queue->drain();                 // the worker gets to it
 $this->api->getConversionResult($id);  // 200, the file
 ```
+
+Making that work takes one piece of wiring. `Kernel::handle()` arms a reset of
+every `kernel.reset` service for the next boot, and a test client boots once per
+request — so the in-memory transport would be emptied between the request that
+queues a job and the drain that runs it, and a queued job would never survive
+the poll that is supposed to observe it pending. `Kernel::build()` untags it,
+under `test` only; every other environment uses `doctrine://`, which is not in
+memory to be reset.
+
+There is no worker either, so `WorkerMessageFailedEvent` never fires here:
+`failed` is the one state the functional suite cannot reach, and it is pinned by
+a unit test on the listener instead.
 
 Everything else is black-box HTTP: routes, status codes and payloads, never the
 classes behind them. The harness splits three ways — `ApiClient` makes the
@@ -165,7 +202,7 @@ only composes them.
 - **SQLite + Doctrine transport.** Zero infrastructure, transactional enqueueing
   for free. First thing to replace under real concurrency — SQLite serialises
   writers.
-- **No retention policy.** Uploads and results are kept forever; a real
-  deployment needs a TTL.
+- **No retention policy.** Uploads and results are kept forever, in
+  `var/uploads/` and `var/results/`; a real deployment needs a TTL.
 - **No authentication.** Ids are opaque rather than sequential, but that is
   obscurity, not authorisation.

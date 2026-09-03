@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use ApiPlatform\Metadata\IriConverterInterface;
 use App\Conversion\Exception\MalformedBody;
 use App\Conversion\TargetFormat;
 use App\Entity\Conversion;
@@ -23,6 +24,7 @@ final class RequestConversion
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
         private readonly MessageBusInterface $bus,
+        private readonly IriConverterInterface $iriConverter,
     ) {
     }
 
@@ -49,7 +51,7 @@ final class RequestConversion
                 'status' => $conversion->status()->value,
             ],
             Response::HTTP_ACCEPTED,
-            ['Location' => '/api/conversions/'.$conversion->id()],
+            ['Location' => $this->iriConverter->getIriFromResource($conversion)],
         );
     }
 

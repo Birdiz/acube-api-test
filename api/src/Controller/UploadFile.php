@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use ApiPlatform\Metadata\IriConverterInterface;
 use App\File\FileUpload;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -17,6 +18,7 @@ final class UploadFile
     public function __construct(
         private readonly FileUpload $upload,
         private readonly EntityManagerInterface $entityManager,
+        private readonly IriConverterInterface $iriConverter,
     ) {
     }
 
@@ -30,7 +32,7 @@ final class UploadFile
         return new JsonResponse(
             ['id' => $file->id()],
             Response::HTTP_CREATED,
-            ['Location' => '/api/files/'.$file->id()],
+            ['Location' => $this->iriConverter->getIriFromResource($file)],
         );
     }
 }

@@ -7,19 +7,15 @@ namespace DoctrineMigrations;
 use Doctrine\DBAL\Schema\Schema;
 use Doctrine\Migrations\AbstractMigration;
 
-/**
- * Auto-generated Migration: Please modify to your needs!
- */
 final class Version20260903155440 extends AbstractMigration
 {
     public function getDescription(): string
     {
-        return '';
+        return 'Create the file and conversion tables, and the Messenger queue.';
     }
 
     public function up(Schema $schema): void
     {
-        // this up() migration is auto-generated, please modify it to your needs
         $this->addSql('CREATE TABLE conversion (id VARCHAR(26) NOT NULL, target_format VARCHAR(16) NOT NULL, status VARCHAR(16) NOT NULL, result_path VARCHAR(1024) DEFAULT NULL, error_message CLOB DEFAULT NULL, created_at DATETIME NOT NULL, completed_at DATETIME DEFAULT NULL, file_id VARCHAR(26) NOT NULL, PRIMARY KEY (id), CONSTRAINT FK_BD91274493CB796C FOREIGN KEY (file_id) REFERENCES file (id) NOT DEFERRABLE INITIALLY IMMEDIATE)');
         $this->addSql('CREATE INDEX IDX_BD91274493CB796C ON conversion (file_id)');
         $this->addSql('CREATE TABLE file (id VARCHAR(26) NOT NULL, original_filename VARCHAR(255) NOT NULL, source_format VARCHAR(16) NOT NULL, size_bytes INTEGER NOT NULL, created_at DATETIME NOT NULL, PRIMARY KEY (id))');
@@ -29,9 +25,8 @@ final class Version20260903155440 extends AbstractMigration
 
     public function down(Schema $schema): void
     {
-        // this down() migration is auto-generated, please modify it to your needs
-        $this->addSql('DROP TABLE conversion');
-        $this->addSql('DROP TABLE file');
-        $this->addSql('DROP TABLE messenger_messages');
+        $this->throwIrreversibleMigrationException(
+            'Dropping these tables would take the uploaded files and their conversions with them.',
+        );
     }
 }

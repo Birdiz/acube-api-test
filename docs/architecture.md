@@ -207,6 +207,15 @@ only composes them.
 - **SQLite + Doctrine transport.** Zero infrastructure, transactional enqueueing
   for free. First thing to replace under real concurrency — SQLite serialises
   writers.
+- **A hand-rolled state machine, not Symfony Workflow.** `pending → processing
+  → done | failed` is a backed enum and three `mark*` methods on the entity,
+  and its only guard is the `match` in `ConversionRunner` that drops a
+  redelivery of finished work. Workflow fits the shape exactly: it would declare
+  the transitions in one place, guard them there rather than in the runner, and
+  give transition events for free. It was still refused — a bundle, a YAML
+  state-machine definition and a layer of indirection to follow, for four states
+  and one guard, is more to review than it saves. That trade flips as soon as
+  the states or their guards multiply.
 - **No retention policy.** Uploads and results are kept forever, in
   `var/uploads/` and `var/results/`; a real deployment needs a TTL.
 - **No authentication.** Ids are opaque rather than sequential, but that is

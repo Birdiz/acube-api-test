@@ -59,24 +59,6 @@ final class ApiClient
         return $this->capture();
     }
 
-    /**
-     * Past post_max_size PHP discards the whole body: $_POST and $_FILES come
-     * back empty and only Content-Length still says a file was sent.
-     */
-    public function postFileDroppedByPhp(int $announcedBytes): Response
-    {
-        $this->browser->request(
-            'POST',
-            '/api/files',
-            server: [
-                'CONTENT_TYPE' => 'multipart/form-data; boundary=----dropped',
-                'CONTENT_LENGTH' => (string) $announcedBytes,
-            ],
-        );
-
-        return $this->capture();
-    }
-
     public function postConversion(string $fileId, mixed $body): Response
     {
         $this->browser->request(

@@ -143,18 +143,6 @@ final class FileUploadTest extends ApiTestCase
     }
 
     #[Test]
-    #[TestDox('reports a body PHP discarded as 413, not as a missing file')]
-    public function itRecognisesAnUploadDroppedByPhp(): void
-    {
-        // Past post_max_size PHP empties $_FILES, so the naive reading is
-        // "no file was sent" -> 422. Content-Length says otherwise, and 413
-        // spares the caller hunting for a bug in their multipart encoding.
-        $response = $this->api->postFileDroppedByPhp($this->maxUploadBytes() * 8);
-
-        ApiAssert::problem($response, Response::HTTP_REQUEST_ENTITY_TOO_LARGE);
-    }
-
-    #[Test]
     #[TestDox('rejects an empty file with 422')]
     public function itRejectsAnEmptyFile(): void
     {

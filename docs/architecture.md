@@ -56,7 +56,7 @@ The interesting ones are where the obvious answer is wrong.
 | Unsupported couple | `422` | Returned from the `POST`, not discovered later. Syntactically fine, semantically impossible. Body lists `supported_formats`. |
 | Unknown `fileId` | `404` | It is in the path, so it identifies the resource being acted on. Checked before the body. |
 | Unsupported file type | `415` | From magic bytes — a `.csv` name on a PDF is still a PDF. |
-| File too large | `413` | Limit (`FILE_MAX_SIZE_BYTES`) stated in the error, and inclusive. Also covers a body PHP discarded — see below. |
+| File too large | `413` | Limit (`FILE_MAX_SIZE_BYTES`) stated in the error, and inclusive. |
 | Empty file, no `file` part, no `format` | `422` | Well-formed request, unusable content. |
 | Malformed JSON | `400` | Unparseable, so there is nothing to validate. |
 
@@ -110,17 +110,22 @@ merits — it mirrors PHP's `upload_max_filesize`, which is the real ceiling:
 
 An application limit *above* PHP's would be fiction: the upload dies a layer
 below, and the caller gets something other than the documented `413`. So the app
-limit tracks the smallest ceiling above it, and both of the lower layers are
-handled rather than assumed unreachable:
+limit tracks the smallest ceiling above it, and the error codes PHP sets on the
+way are read before the contents are:
 
 - `UPLOAD_ERR_INI_SIZE` → `413`. The temporary file is empty or partial, so the
   error code has to be checked *before* the contents are read; reading first is
   how this turns into a 500.
 - `UPLOAD_ERR_PARTIAL` → `422`. The connection dropped mid-upload.
-- Body discarded past `post_max_size` → `413`, not `422`. `$_FILES` is empty so
-  the naive reading is "no file was sent", but `Content-Length` says otherwise,
-  and `413` is the answer that tells the caller something useful instead of
-  sending them to look for a bug in their multipart encoding.
+
+**Past `post_max_size` the request is not handled specially.** PHP discards the
+whole body, so `$_FILES` is empty and the API answers `422` "no file was sent".
+Reading `Content-Length` and calling it `413` instead is a better answer, and an
+earlier version did exactly that — but it costs a parser for PHP's ini shorthand
+and a branch that no functional test can honestly reach, to improve the wording
+of a case a caller hits by sending a body twice the size of the stated limit.
+That is a poor trade in a codebase meant to be read, so the guess is gone. The
+first row of the table above is the layer we do not answer for.
 
 Two caveats worth knowing. These PHP values are **compiled-in defaults**, not
 pinned in `docker/php/php.ini`, so a base-image change could move them silently;

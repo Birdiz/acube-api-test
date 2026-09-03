@@ -9,6 +9,6 @@ enum ConversionStatus: string
 {
     case Pending = 'pending';
     case Processing = 'processing';
-    case Completed = 'completed';
+    case Done = 'done';
     case Failed = 'failed';
 }

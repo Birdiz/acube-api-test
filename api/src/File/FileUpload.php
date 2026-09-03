@@ -15,9 +15,8 @@ use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\Request;
 
 /**
- * Turns a multipart request into a stored file, refusing it as early as it can
- * be refused. The order matters: PHP's own error code is read before the
- * contents, because a file PHP rejected has no usable contents to read.
+ * Turns a multipart request into a stored file. PHP's error code is read
+ * before the contents: a file PHP rejected has none worth reading.
  */
 final class FileUpload
 {
@@ -46,7 +45,6 @@ final class FileUpload
         return $file;
     }
 
-    /** The layout is this service's to know, and is derived from the id alone. */
     private function pathFor(File $file): string
     {
         return $this->directory.'/'.$file->id();
@@ -60,10 +58,8 @@ final class FileUpload
             return $upload;
         }
 
-        // Past post_max_size PHP discards the whole body, so $_FILES is empty
-        // and only Content-Length still says a file was sent. The threshold is
-        // PHP's, not ours: a body under it was read in full, so a missing part
-        // there really is a missing part and not a discarded upload.
+        // Past post_max_size PHP discards the body, so $_FILES is empty and
+        // only Content-Length still says a file was sent.
         $announced = (int) $request->headers->get('Content-Length', '0');
 
         if ($announced > $this->postMaxSizeBytes()) {
@@ -73,10 +69,7 @@ final class FileUpload
         throw MissingFilePart::inMultipartBody();
     }
 
-    /**
-     * `post_max_size` in bytes. An unset or non-positive value means PHP
-     * accepts any body, so nothing can have been discarded.
-     */
+    /** An unset or non-positive `post_max_size` means PHP accepts any body. */
     private function postMaxSizeBytes(): int
     {
         $configured = trim((string) ini_get('post_max_size'));
@@ -98,22 +91,15 @@ final class FileUpload
     {
         match ($upload->getError()) {
             \UPLOAD_ERR_OK => null,
-            // FORM_SIZE is the caller's own MAX_FILE_SIZE field, so it is as
-            // much a size breach as PHP's own limit and gets the same answer.
+            // FORM_SIZE is the caller's own MAX_FILE_SIZE field: still a size breach.
             \UPLOAD_ERR_INI_SIZE, \UPLOAD_ERR_FORM_SIZE => throw UploadTooLarge::refusedByPhp($this->maxSizeBytes),
             \UPLOAD_ERR_PARTIAL => throw PartialUpload::wasReceived(),
-            // What is left — a full disk, an unwritable temp directory — is
-            // ours, not the caller's: it must not be dressed up as a 4xx.
+            // A full disk or an unwritable temp dir is ours, not the caller's.
             default => throw new \RuntimeException($upload->getErrorMessage()),
         };
     }
 
-    /**
-     * The client's filename is arbitrary bytes of arbitrary length. It is
-     * echoed back in the 201 and stored in a bounded column, so it is made
-     * printable and cut to size here rather than left to blow up in
-     * json_encode() or at flush() once the database is not SQLite.
-     */
+    /** Arbitrary bytes of arbitrary length, so it is made printable and cut to size. */
     private function filename(UploadedFile $upload): string
     {
         $name = $upload->getClientOriginalName();
@@ -156,15 +142,7 @@ final class FileUpload
         return $detected;
     }
 
-    /**
-     * A filesystem-level stream copy: the bytes go straight from the temporary
-     * file to storage and are never held in memory, however large the upload.
-     *
-     * A copy rather than a rename because the temporary file is not ours to
-     * consume — PHP discards it at the end of the request either way, and the
-     * two paths are usually on different filesystems, where a rename would
-     * degrade to this copy anyway.
-     */
+    /** A filesystem copy: the bytes never pass through PHP's memory. */
     private function streamToStorage(UploadedFile $upload, string $destination): void
     {
         if (!copy($upload->getPathname(), $destination)) {

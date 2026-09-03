@@ -13,10 +13,8 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Uid\Ulid;
 
 /**
- * A source file that has been received and validated. The bytes live on disk
- * under the id, so where they are is derived rather than stored: a path
- * written into a row would be an absolute path from whichever container
- * happened to write it.
+ * Where the bytes live is derived from the id rather than stored: a path in a
+ * row would be an absolute path from whichever container wrote it.
  */
 #[ORM\Entity]
 #[ApiResource(
@@ -26,9 +24,7 @@ use Symfony\Component\Uid\Ulid;
             status: Response::HTTP_CREATED,
             inputFormats: ['multipart' => ['multipart/form-data']],
             controller: UploadFile::class,
-            // The controller answers with a Response of its own: a multipart
-            // upload has nothing for the serializer to deserialize, and the
-            // 201 body is written by hand.
+            // The controller writes its own Response: nothing here to deserialize.
             deserialize: false,
             validate: false,
             write: false,
@@ -45,10 +41,7 @@ class File
     #[ORM\Column(type: 'string', length: 26)]
     private readonly string $id;
 
-    /**
-     * Kept for the caller's benefit only. It is never used to build a storage
-     * path, and never to decide what the file is.
-     */
+    /** For the caller's benefit only: never used to locate or identify the file. */
     #[ORM\Column(type: 'string', length: self::MAX_FILENAME_LENGTH)]
     private readonly string $originalFilename;
 

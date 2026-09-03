@@ -4,10 +4,7 @@ declare(strict_types=1);
 
 namespace App\Conversion\Exception;
 
-/**
- * Unparseable, so there is nothing to validate: a 400 rather than the 422 a
- * well-formed body with a bad field would get.
- */
+/** Unparseable, so there is nothing to validate: 400, not the 422 a bad field gets. */
 final class MalformedBody extends ConversionProblem
 {
     public static function isNotJson(?\Throwable $previous = null): self

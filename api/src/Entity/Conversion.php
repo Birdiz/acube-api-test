@@ -13,11 +13,7 @@ use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Uid\Ulid;
 
-/**
- * A request to turn one uploaded file into one target format, and the record
- * of how that went. It is written before the job is queued, so the address the
- * 202 hands out resolves from the moment the caller reads it.
- */
+/** Written before the job is queued, so the address in the 202 resolves at once. */
 #[ORM\Entity]
 #[ApiResource(
     operations: [
@@ -25,8 +21,7 @@ use Symfony\Component\Uid\Ulid;
             uriTemplate: '/files/{fileId}/conversions',
             status: Response::HTTP_ACCEPTED,
             controller: RequestConversion::class,
-            // As on File: the controller decides the 404/422/400 outcomes and
-            // writes the 202 body itself.
+            // As on File: the controller decides the outcome and writes the body.
             deserialize: false,
             validate: false,
             write: false,

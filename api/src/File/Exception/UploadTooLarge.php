@@ -6,11 +6,7 @@ namespace App\File\Exception;
 
 use App\Conversion\Exception\ConversionProblem;
 
-/**
- * The three ways a file can be too big: our own limit, the same limit reached
- * one layer down in PHP, and a body PHP threw away before we saw it. All three
- * are the same answer to the caller, so all three name the same number.
- */
+/** Our limit, PHP's limit, or a body PHP discarded: one answer, one number. */
 final class UploadTooLarge extends ConversionProblem
 {
     public static function forSize(int $sizeBytes, int $maxBytes): self

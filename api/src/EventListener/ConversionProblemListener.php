@@ -11,12 +11,8 @@ use Symfony\Component\HttpKernel\Event\ExceptionEvent;
 use Symfony\Component\HttpKernel\KernelEvents;
 
 /**
- * The one place a {@see ConversionProblem} becomes an HTTP response, so the
- * code that detects a problem never has to know how it will be rendered.
- *
- * The priority puts it ahead of API Platform's own exception listener, which
- * would otherwise flatten these into its generic error shape and drop the
- * extra members that make them actionable.
+ * The one place a problem becomes a response. The priority puts it ahead of
+ * API Platform's listener, which would drop the extra members.
  */
 #[AsEventListener(event: KernelEvents::EXCEPTION, priority: 128)]
 final class ConversionProblemListener

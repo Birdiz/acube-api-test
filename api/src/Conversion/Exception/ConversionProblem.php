@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Conversion\Exception;
 
 /**
- * A failure the caller caused, carrying everything its RFC 9457 document needs
- * so that rendering happens in one place. The message is the `detail`.
+ * A failure the caller caused, carrying everything its error response needs so
+ * that rendering happens in one place. The message becomes the `detail`.
  *
  * A failure that is *not* one of these is ours, and is the only thing allowed
  * to become a 5xx.

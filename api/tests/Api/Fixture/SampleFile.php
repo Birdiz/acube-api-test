@@ -203,7 +203,8 @@ final class SampleFile
     }
 
     /**
-     * ODF mandates this string as the archive's first, uncompressed entry, and
+     * OpenDocument requires this string as the archive's first, uncompressed
+     * entry, and
      * it is what libmagic reads to identify the file — so it is the same value
      * SourceFormat detects by.
      */

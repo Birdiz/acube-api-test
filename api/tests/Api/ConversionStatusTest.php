@@ -58,7 +58,7 @@ final class ConversionStatusTest extends ApiTestCase
     }
 
     #[Test]
-    #[TestDox('timestamps the conversion in ISO 8601')]
+    #[TestDox('gives created_at as a full date, time and offset')]
     public function itTimestampsTheConversion(): void
     {
         $fileId = $this->uploadFile(SampleFile::json());
@@ -70,7 +70,7 @@ final class ConversionStatusTest extends ApiTestCase
         self::assertIsString($createdAt);
         self::assertNotFalse(
             \DateTimeImmutable::createFromFormat(\DateTimeInterface::ATOM, $createdAt),
-            \sprintf('Expected an ISO 8601 timestamp, got "%s".', $createdAt),
+            \sprintf('Expected a date like 2026-09-03T11:22:33+00:00, got "%s".', $createdAt),
         );
     }
 

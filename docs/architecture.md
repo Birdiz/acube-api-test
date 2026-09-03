@@ -65,17 +65,18 @@ uploaded; both throw rather than returning null, because "unsupported" is
 information the caller needs, not an absent value.
 
 Those throws are `ConversionProblem` subclasses, and each one carries everything
-its problem document needs — status, type, title, and any extension that makes
+its error response needs — status, type, title, and any extra field that makes
 it actionable, such as the `supported_formats` on a rejected format. Rendering
 is therefore one place, and the code that detects a problem is the code that
 decides what the caller is told. A failure that is *not* a `ConversionProblem`
 is ours, and is the only thing allowed to become a 5xx.
 
-All errors are RFC 9457 problem documents, and **nothing a caller can send may
+All errors come back as `application/problem+json` — a JSON body carrying a
+`type`, `title`, `status` and `detail` — and **nothing a caller can send may
 produce a 5xx**: a malformed, oversized or hostile request is always a 4xx that
-explains itself. `ApiAssert::noServerError()` runs on every response as it arrives, so a
-crash fails the test where it happened rather than being masked by whatever
-assertion would have failed next.
+explains itself. `ApiAssert::noServerError()` runs on every response as it
+arrives, so a crash fails the test where it happened rather than being masked
+by whatever assertion would have failed next.
 
 A 5xx is reserved for faults that are genuinely ours (`UPLOAD_ERR_CANT_WRITE`, a
 full disk) — cases where the caller changing their request would not help.

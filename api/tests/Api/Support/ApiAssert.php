@@ -16,7 +16,8 @@ final class ApiAssert extends Assert
 {
     /**
      * A bare status code is not an explicit error, so every failure is expected
-     * to be an RFC 9457 problem document.
+     * to come back as `application/problem+json`: a JSON body carrying a
+     * `type`, `title`, `status` and `detail`.
      *
      * @return array<string, mixed>
      */
@@ -30,7 +31,7 @@ final class ApiAssert extends Assert
         self::assertStringContainsString(
             'application/problem+json',
             (string) $response->headers->get('Content-Type'),
-            'Errors are expected to be RFC 9457 problem documents.',
+            'Errors are expected to come back as application/problem+json.',
         );
 
         $problem = self::json($response);

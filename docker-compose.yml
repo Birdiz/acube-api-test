@@ -1,0 +1,21 @@
+services:
+  app:
+    build:
+      context: .
+      args:
+        PHP_VERSION: ${PHP_VERSION:-8.4}
+    ports:
+      - "${HTTP_PORT:-8000}:8080"
+    volumes:
+      # The Symfony application lives in api/, not at the repository root.
+      - ./api:/app
+      - caddy_data:/data/caddy
+      - caddy_config:/config/caddy
+    environment:
+      APP_ENV: dev
+      APP_DEBUG: 1
+    restart: unless-stopped
+
+volumes:
+  caddy_data:
+  caddy_config:

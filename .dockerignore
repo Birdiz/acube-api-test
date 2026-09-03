@@ -1,0 +1,13 @@
+.git
+.gitignore
+.claude
+**/.env.local
+**/.env.*.local
+.idea
+.vscode
+**/.phpunit.result.cache
+docker-compose*.yml
+Dockerfile
+**/vendor/
+**/var/
+**/node_modules/

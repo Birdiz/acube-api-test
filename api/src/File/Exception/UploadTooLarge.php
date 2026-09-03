@@ -27,16 +27,6 @@ final class UploadTooLarge extends ConversionProblem
         ));
     }
 
-    public static function discardedByPhp(int $announcedBytes, int $maxBytes): self
-    {
-        return new self(\sprintf(
-            'The request announced %d bytes and was discarded before it could be read. '
-            .'The maximum accepted size is %d bytes.',
-            $announcedBytes,
-            $maxBytes,
-        ));
-    }
-
     public function status(): int
     {
         return 413;

@@ -6,9 +6,8 @@ namespace App\Conversion;
 
 use App\Conversion\Exception\MalformedBody;
 use App\Entity\Conversion;
-use App\Entity\File;
-use App\File\Exception\UnknownFile;
 use App\Message\RunConversion;
+use App\Repository\FileRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Messenger\MessageBusInterface;
@@ -22,14 +21,14 @@ final class ConversionScheduler
 {
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
+        private readonly FileRepository $files,
         private readonly MessageBusInterface $bus,
     ) {
     }
 
     public function schedule(Request $request, string $fileId): Conversion
     {
-        $file = $this->entityManager->find(File::class, $fileId)
-            ?? throw UnknownFile::withId($fileId);
+        $file = $this->files->withId($fileId);
 
         $conversion = new Conversion($file, TargetFormat::fromRequest($this->requestedFormat($request)));
 

@@ -65,33 +65,7 @@ final class FileUpload
             return $upload;
         }
 
-        // Past post_max_size PHP discards the body, so $_FILES is empty and
-        // only Content-Length still says a file was sent.
-        $announced = (int) $request->headers->get('Content-Length', '0');
-
-        if ($announced > $this->postMaxSizeBytes()) {
-            throw UploadTooLarge::discardedByPhp($announced, $this->maxSizeBytes);
-        }
-
         throw MissingFilePart::inMultipartBody();
-    }
-
-    /** An unset or non-positive `post_max_size` means PHP accepts any body. */
-    private function postMaxSizeBytes(): int
-    {
-        $configured = trim((string) ini_get('post_max_size'));
-        $amount = (int) $configured;
-
-        if ($amount <= 0) {
-            return \PHP_INT_MAX;
-        }
-
-        return $amount * match (strtolower(substr($configured, -1))) {
-            'g' => 1024 ** 3,
-            'm' => 1024 ** 2,
-            'k' => 1024,
-            default => 1,
-        };
     }
 
     private function failOnPhpError(UploadedFile $upload): void

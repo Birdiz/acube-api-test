@@ -9,6 +9,7 @@ use ApiPlatform\Metadata\Post;
 use App\Controller\UploadFile;
 use App\Conversion\SourceFormat;
 use App\File\FileUploadRequest;
+use App\Repository\FileRepository;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Uid\Ulid;
@@ -17,7 +18,7 @@ use Symfony\Component\Uid\Ulid;
  * Where the bytes live is derived from the id rather than stored: a path in a
  * row would be an absolute path from whichever container wrote it.
  */
-#[ORM\Entity]
+#[ORM\Entity(repositoryClass: FileRepository::class)]
 #[ApiResource(
     operations: [
         new Post(
@@ -71,5 +72,15 @@ class File
     public function id(): string
     {
         return $this->id;
+    }
+
+    public function originalFilename(): string
+    {
+        return $this->originalFilename;
+    }
+
+    public function sourceFormat(): SourceFormat
+    {
+        return $this->sourceFormat;
     }
 }

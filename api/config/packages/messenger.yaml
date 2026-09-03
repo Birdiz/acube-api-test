@@ -9,6 +9,8 @@ framework:
                 dsn: '%env(MESSENGER_TRANSPORT_DSN)%'
                 options:
                     queue_name: conversions
+                    # How long a worker killed mid-job holds the message.
+                    redeliver_timeout: 300
                 retry_strategy:
                     max_retries: 3
                     delay: 5000

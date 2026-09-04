@@ -155,6 +155,15 @@ never the classes behind them.
   `done` can be reopened or a `failed` overwritten. Milliseconds of stub work and
   a single worker keep that window theoretical; real work needs a lease read under
   a write lock.
+- **The generated schema describes the resource, not the response.** Every
+  operation declares an `input:` DTO, so what a caller sends is documented
+  exactly; none declares an `output:`, so what a caller gets falls back to the
+  entity — which exposes no property the serializer can see, leaving
+  `Conversion.jsonld` and `File.jsonld` as empty objects. The `202` is published
+  as `application/ld+json` and returns `{"id", "status"}` as `application/json`.
+  The fix is `output:` DTOs, not groups alone: the controllers run under
+  `serialize: false`, so nothing reaches the serializer. `OpenApiDocumentationTest`
+  pins the paths and parameters, not the bodies.
 - **No retention policy.** Uploads and results are kept forever, in `var/uploads/`
   and `var/results/`; a real deployment needs a TTL.
 - **No authentication.** Ids are opaque rather than sequential, but that is

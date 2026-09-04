@@ -61,9 +61,18 @@ final readonly class ApiClient
 
     public function postConversion(string $fileId, mixed $body): Response
     {
+        return $this->postJson(\sprintf('/api/files/%s/conversions', $fileId), $body);
+    }
+
+    /**
+     * For a caller holding a URL rather than an id — one read out of the
+     * published document, say, instead of built from the route it knows.
+     */
+    public function postJson(string $url, mixed $body): Response
+    {
         $this->browser->request(
             'POST',
-            \sprintf('/api/files/%s/conversions', $fileId),
+            $url,
             server: ['CONTENT_TYPE' => 'application/json'],
             content: \is_string($body) ? $body : json_encode($body, \JSON_THROW_ON_ERROR),
         );

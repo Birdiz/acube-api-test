@@ -11,8 +11,8 @@ use Symfony\Component\Serializer\SerializerInterface;
 
 /**
  * The conversion is a stub — the exercise is the lifecycle — so it never opens
- * the source file. It does not catch either: a failure belongs to Messenger's
- * retries, and is recorded once they are spent.
+ * the source file. A failure is recorded and rethrown: the caller polling the
+ * status gets an ending, and the worker still logs what actually broke.
  */
 final readonly class ConversionRunner
 {
@@ -41,8 +41,20 @@ final readonly class ConversionRunner
         $conversion->markProcessing();
         $this->entityManager->flush();
 
-        // Bytes first: a conversion is only done once there is something to serve.
-        $this->result->store($conversion, $this->placeholder($conversion));
+        try {
+            // Bytes first: a conversion is only done once there is something to serve.
+            $this->result->store($conversion, $this->placeholder($conversion));
+        } catch (\Throwable $failure) {
+            // Read back by a caller, so it names no paths and no SQL; the
+            // throwable itself is rethrown, and the worker logs it.
+            $conversion->markFailed(\sprintf(
+                'The conversion could not be completed (%s).',
+                (new \ReflectionClass($failure))->getShortName(),
+            ));
+            $this->entityManager->flush();
+
+            throw $failure;
+        }
 
         $conversion->markDone();
         $this->entityManager->flush();

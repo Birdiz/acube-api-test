@@ -153,11 +153,14 @@ That is also why `processing` is written down — it is what tells a redelivery
 of a half-run job apart from a first delivery. `redeliver_timeout` bounds how
 long a worker killed mid-job holds the message.
 
-Failures retry three times before landing on `failed`, which is written once,
-by a listener on `WorkerMessageFailedEvent` when the retries are spent — not on
-each attempt, so a caller polling through the backoff is never told a job is
-over that is about to succeed. The stored message is a sentence meant for the
-caller; the throwable itself goes to the log and the `failed` transport.
+A job that cannot write its result records `failed` and rethrows, so the
+caller polling the status gets an ending and the worker still logs what broke.
+`max_retries` is `0` for that reason: recording a failure while another attempt
+could still turn it around would tell a caller a job is over that is about to
+succeed, and the alternative — retrying and writing the state only once the
+backoff is spent — buys a listener and a failure transport for a stub
+conversion that has nothing transient to retry. The stored message is a
+sentence meant for the caller: it names the class that broke and no paths.
 
 The conversion itself is a stub — the exercise is the lifecycle, not the
 contents. The worker never opens the source file: it writes what the job knows
@@ -190,9 +193,9 @@ the poll that is supposed to observe it pending. `Kernel::build()` untags it,
 under `test` only; every other environment uses `doctrine://`, which is not in
 memory to be reset.
 
-There is no worker either, so `WorkerMessageFailedEvent` never fires here:
-`failed` is the one state the functional suite cannot reach, and it is pinned by
-a unit test on the listener instead.
+A stub conversion has nothing to trip over either, so `failed` is the one state
+the functional suite cannot reach; it is pinned by a unit test that points the
+result store at an unwritable path, which is the real shape of that failure.
 
 Everything else is black-box HTTP: routes, status codes and payloads, never the
 classes behind them. The harness splits three ways — `ApiClient` makes the

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Repository;
 
-use App\Conversion\Exception\UnknownConversion;
+use App\Conversion\Exception\ConversionProblem;
 use App\Entity\Conversion;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
@@ -17,9 +17,9 @@ final class ConversionRepository extends ServiceEntityRepository
         parent::__construct($registry, Conversion::class);
     }
 
-    /** Doctrine answers null; the API answers 404. @throws UnknownConversion */
+    /** Doctrine answers null; the API answers 404. @throws ConversionProblem */
     public function withId(string $conversionId): Conversion
     {
-        return $this->find($conversionId) ?? throw UnknownConversion::withId($conversionId);
+        return $this->find($conversionId) ?? throw ConversionProblem::unknownConversion($conversionId);
     }
 }

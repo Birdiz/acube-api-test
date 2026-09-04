@@ -8,7 +8,7 @@ use ApiPlatform\Metadata\IriConverterInterface;
 use App\Conversion\ConversionResult;
 use App\Conversion\ConversionStatus;
 use App\Conversion\ConversionUri;
-use App\Conversion\Exception\ResultNotReady;
+use App\Conversion\Exception\ConversionProblem;
 use App\Entity\Conversion;
 use App\Repository\ConversionRepository;
 use Symfony\Component\HttpFoundation\Response;
@@ -29,7 +29,7 @@ final readonly class DownloadConversionResult
         $conversion = $this->conversions->withId($id);
 
         if (ConversionStatus::Done !== $conversion->status()) {
-            throw ResultNotReady::forStatus($conversion->status(), $this->statusUrl($conversion));
+            throw ConversionProblem::resultNotReady($conversion->status(), $this->statusUrl($conversion));
         }
 
         // Read whole rather than streamed: a result is bounded by the upload it

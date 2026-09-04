@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Conversion;
 
-use App\Conversion\Exception\UnsupportedSourceFormat;
+use App\Conversion\Exception\ConversionProblem;
 use App\Conversion\SourceFormat;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
@@ -36,7 +36,7 @@ final class SourceFormatTest extends TestCase
     #[TestDox('refuses a type it cannot convert from')]
     public function itRefusesAnUnknownMimeType(): void
     {
-        $this->expectException(UnsupportedSourceFormat::class);
+        $this->expectException(ConversionProblem::class);
 
         SourceFormat::fromMimeType('application/pdf');
     }
@@ -47,9 +47,9 @@ final class SourceFormatTest extends TestCase
     {
         try {
             SourceFormat::fromMimeType('application/pdf');
-            self::fail('Expected an UnsupportedSourceFormat.');
-        } catch (UnsupportedSourceFormat $problem) {
-            self::assertSame(415, $problem->status());
+            self::fail('Expected the unsupported type to be refused.');
+        } catch (ConversionProblem $problem) {
+            self::assertSame(415, $problem->status);
             self::assertStringContainsString('application/pdf', $problem->getMessage());
 
             foreach (SourceFormat::cases() as $format) {
@@ -63,7 +63,7 @@ final class SourceFormatTest extends TestCase
     public function itDoesNotAcceptABareZip(): void
     {
         // XLSX and ODS are ZIP containers, so this is the mistake to guard.
-        $this->expectException(UnsupportedSourceFormat::class);
+        $this->expectException(ConversionProblem::class);
 
         SourceFormat::fromMimeType('application/zip');
     }

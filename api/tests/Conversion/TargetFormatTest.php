@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Conversion;
 
-use App\Conversion\Exception\UnsupportedTargetFormat;
+use App\Conversion\Exception\ConversionProblem;
 use App\Conversion\TargetFormat;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
@@ -34,7 +34,7 @@ final class TargetFormatTest extends TestCase
     #[TestDox('refuses a format it does not produce')]
     public function itRefusesAnUnknownFormat(): void
     {
-        $this->expectException(UnsupportedTargetFormat::class);
+        $this->expectException(ConversionProblem::class);
 
         TargetFormat::fromRequest('pdf');
     }
@@ -45,13 +45,13 @@ final class TargetFormatTest extends TestCase
     {
         try {
             TargetFormat::fromRequest('yaml');
-            self::fail('Expected an UnsupportedTargetFormat.');
-        } catch (UnsupportedTargetFormat $problem) {
-            self::assertSame(422, $problem->status());
+            self::fail('Expected the unsupported format to be refused.');
+        } catch (ConversionProblem $problem) {
+            self::assertSame(422, $problem->status);
             self::assertStringContainsString('yaml', $problem->getMessage());
             self::assertSame(
                 ['supported_formats' => ['json', 'xml']],
-                $problem->extensions(),
+                $problem->extensions,
                 'The caller must not have to guess what is allowed.',
             );
         }

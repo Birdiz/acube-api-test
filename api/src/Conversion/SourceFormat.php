@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Conversion;
 
-use App\Conversion\Exception\UnsupportedSourceFormat;
+use App\Conversion\Exception\ConversionProblem;
 
 /**
  * The case values double as the canonical short names used in URLs, messages
@@ -34,7 +34,7 @@ enum SourceFormat: string
         };
     }
 
-    /** @throws UnsupportedSourceFormat */
+    /** @throws ConversionProblem */
     public static function fromMimeType(string $mimeType): self
     {
         foreach (self::cases() as $format) {
@@ -43,6 +43,6 @@ enum SourceFormat: string
             }
         }
 
-        throw UnsupportedSourceFormat::forMimeType($mimeType);
+        throw ConversionProblem::unsupportedSourceFormat($mimeType);
     }
 }

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Conversion;
 
-use App\Conversion\Exception\UnsupportedTargetFormat;
+use App\Conversion\Exception\ConversionProblem;
 
 enum TargetFormat: string
 {
@@ -22,13 +22,13 @@ enum TargetFormat: string
     /**
      * Case-insensitive: "XML" is as reasonable a thing to send as "xml".
      *
-     * @throws UnsupportedTargetFormat so an impossible couple is refused at
+     * @throws ConversionProblem so an impossible couple is refused at
      *         request time rather than by a job that fails two minutes later
      */
     public static function fromRequest(string $requested): self
     {
         return self::tryFrom(strtolower($requested))
-            ?? throw UnsupportedTargetFormat::forRequested($requested);
+            ?? throw ConversionProblem::unsupportedTargetFormat($requested);
     }
 
     /** @return non-empty-list<string> */

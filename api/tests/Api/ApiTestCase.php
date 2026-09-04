@@ -9,6 +9,7 @@ use App\Tests\Api\Support\ApiClient;
 use App\Tests\Api\Support\ConversionQueue;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Tools\SchemaTool;
+use Symfony\Bundle\FrameworkBundle\Test\TestContainer;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -33,7 +34,10 @@ abstract class ApiTestCase extends WebTestCase
         $browser->disableReboot();
 
         $this->api = new ApiClient($browser, ApiAssert::noServerError(...));
-        $this->queue = new ConversionQueue(static::getContainer());
+        $container = static::getContainer();
+        self::assertInstanceOf(TestContainer::class, $container, 'The suite needs the test container to drain the queue.');
+
+        $this->queue = new ConversionQueue($container);
 
         $this->resetDatabase();
     }

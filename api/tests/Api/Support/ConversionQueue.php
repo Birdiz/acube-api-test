@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Api\Support;
 
-use Psr\Container\ContainerInterface;
+use Symfony\Bundle\FrameworkBundle\Test\TestContainer;
 use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Messenger\Stamp\ReceivedStamp;
 use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
@@ -18,7 +18,10 @@ final readonly class ConversionQueue
 {
     private const string TRANSPORT = 'conversions';
 
-    public function __construct(private ContainerInterface $container)
+    // Typed as the test container, not ContainerInterface: reaching services
+    // production keeps private is exactly what it is for, and saying so is what
+    // makes these fetches legible to a reader and to static analysis.
+    public function __construct(private TestContainer $container)
     {
     }
 
@@ -39,17 +42,10 @@ final readonly class ConversionQueue
 
     private function transport(): InMemoryTransport
     {
-        $id = 'messenger.transport.'.self::TRANSPORT;
-
-        // A broken harness, not a failing expectation: throw, don't assert.
-        if (!$this->container->has($id)) {
-            throw new \LogicException(\sprintf(
-                'Conversion jobs are expected to be queued on the "%s" transport.',
-                self::TRANSPORT,
-            ));
-        }
-
-        $transport = $this->container->get($id);
+        // A missing id is the container's own error to report. What it cannot
+        // say is that the transport must be drainable, so that is the guard
+        // left here — a broken harness, not a failing expectation.
+        $transport = $this->container->get('messenger.transport.'.self::TRANSPORT);
 
         if (!$transport instanceof InMemoryTransport) {
             throw new \LogicException(\sprintf(

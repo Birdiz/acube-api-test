@@ -139,16 +139,15 @@ make analyse
 ```
 
 PHPStan runs at **level 10**, its maximum, over `src/` and `tests/` with the
-Symfony, Doctrine and PHPUnit extensions, and the run is clean. The target warms
-the test container first because the Symfony extension reads it to resolve
-service ids; three errors in `ConversionQueue` are ignored in
-`api/phpstan.dist.neon`, where the reason is written down — the harness fetches
-services the test container exposes on purpose and the compiled container says
-are private.
+Symfony, Doctrine and PHPUnit extensions. The run is clean with **no baseline
+and no ignored errors** — a baseline would make the level a claim about the code
+that was true once. The target warms the test container first because the
+Symfony extension reads it to resolve the service ids the harness fetches.
 
 Analysing the tests as well as the source is the part that paid: the source held
-a dead `catch`, an unused method and an IRI that could be `null`, and the
-harness was passing `mixed` into assertions that expect strings.
+a dead `catch`, an unused method and an IRI that could be `null`; the harness
+was passing `mixed` into assertions that expect strings, and guarding a service
+id against an absence the container reports better itself.
 
 ```bash
 make refactor

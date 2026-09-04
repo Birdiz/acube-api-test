@@ -18,11 +18,11 @@ use Symfony\Component\Messenger\Exception\HandlerFailedException;
  * decides at 100, so `willRetry()` is final by the time this runs.
  */
 #[AsEventListener(event: WorkerMessageFailedEvent::class)]
-final class FailedConversionListener
+final readonly class FailedConversionListener
 {
     public function __construct(
-        private readonly ConversionRepository $conversions,
-        private readonly EntityManagerInterface $entityManager,
+        private ConversionRepository $conversions,
+        private EntityManagerInterface $entityManager,
     ) {
     }
 

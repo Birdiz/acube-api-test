@@ -1,0 +1,13 @@
+parameters:
+    level: 10
+    paths:
+        - src
+        - tests
+
+    # The extension reads a compiled container to know what the service ids in
+    # the test harness resolve to. It has to be the *test* one — that is where
+    # the framework makes private services fetchable — so `make analyse` warms
+    # it before running.
+    symfony:
+        containerXmlPath: var/cache/test/App_KernelTestDebugContainer.xml
+

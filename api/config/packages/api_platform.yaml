@@ -1,5 +1,6 @@
 api_platform:
-    title: Hello API Platform
+    title: File Conversion API
+    description: 'Upload a file, request a conversion, poll the status URL for the result.'
     version: 1.0.0
     defaults:
         stateless: true

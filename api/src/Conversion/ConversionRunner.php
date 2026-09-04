@@ -14,13 +14,13 @@ use Symfony\Component\Serializer\SerializerInterface;
  * the source file. It does not catch either: a failure belongs to Messenger's
  * retries, and is recorded once they are spent.
  */
-final class ConversionRunner
+final readonly class ConversionRunner
 {
     public function __construct(
-        private readonly ConversionRepository $conversions,
-        private readonly ConversionResult $result,
-        private readonly SerializerInterface $serializer,
-        private readonly EntityManagerInterface $entityManager,
+        private ConversionRepository $conversions,
+        private ConversionResult $result,
+        private SerializerInterface $serializer,
+        private EntityManagerInterface $entityManager,
     ) {
     }
 

@@ -45,7 +45,10 @@ final class ConversionRequestTest extends ApiTestCase
     #[TestDox('accepts $_dataName with 202, a pending status and a Location')]
     public function itAcceptsEverySupportedCouple(string $source, string $target): void
     {
-        $fileId = $this->uploadFile(SampleFile::$source());
+        $path = SampleFile::$source();
+        self::assertIsString($path, 'A data provider must name a fixture builder that exists.');
+
+        $fileId = $this->uploadFile($path);
 
         $response = $this->api->postConversion($fileId, ['format' => $target]);
 
@@ -117,7 +120,7 @@ final class ConversionRequestTest extends ApiTestCase
         $response = $this->api->postConversion($fileId, ['format' => 'pdf']);
 
         $problem = ApiAssert::problem($response, Response::HTTP_UNPROCESSABLE_ENTITY);
-        self::assertStringContainsStringIgnoringCase('pdf', $problem['detail']);
+        self::assertStringContainsStringIgnoringCase('pdf', ApiAssert::stringField($problem, 'detail'));
     }
 
     #[Test]

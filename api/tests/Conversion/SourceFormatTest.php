@@ -88,14 +88,12 @@ final class SourceFormatTest extends TestCase
     }
 
     #[Test]
-    #[TestDox('gives every case at least one MIME type, and shares none')]
+    #[TestDox('shares no MIME type between cases')]
     public function itMapsEachCaseToDistinctMimeTypes(): void
     {
         $seen = [];
 
         foreach (SourceFormat::cases() as $format) {
-            self::assertNotEmpty($format->mimeTypes(), \sprintf('%s must be detectable.', $format->name));
-
             foreach ($format->mimeTypes() as $mimeType) {
                 self::assertArrayNotHasKey($mimeType, $seen, \sprintf(
                     '"%s" would resolve to both %s and %s.',

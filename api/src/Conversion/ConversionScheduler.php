@@ -17,12 +17,12 @@ use Symfony\Component\Messenger\MessageBusInterface;
  * path names what is being acted on, so an unknown file is answered before
  * the body.
  */
-final class ConversionScheduler
+final readonly class ConversionScheduler
 {
     public function __construct(
-        private readonly EntityManagerInterface $entityManager,
-        private readonly FileRepository $files,
-        private readonly MessageBusInterface $bus,
+        private EntityManagerInterface $entityManager,
+        private FileRepository $files,
+        private MessageBusInterface $bus,
     ) {
     }
 
@@ -49,7 +49,7 @@ final class ConversionScheduler
     {
         try {
             $payload = $request->toArray();
-        } catch (\JsonException|\UnexpectedValueException $invalid) {
+        } catch (\UnexpectedValueException $invalid) {
             throw MalformedBody::isNotJson($invalid);
         }
 

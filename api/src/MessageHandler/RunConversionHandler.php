@@ -9,9 +9,9 @@ use App\Message\RunConversion;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
 #[AsMessageHandler]
-final class RunConversionHandler
+final readonly class RunConversionHandler
 {
-    public function __construct(private readonly ConversionRunner $runner)
+    public function __construct(private ConversionRunner $runner)
     {
     }
 

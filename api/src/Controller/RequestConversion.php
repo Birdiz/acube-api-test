@@ -13,15 +13,15 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Attribute\AsController;
 
 #[AsController]
-final class RequestConversion
+final readonly class RequestConversion
 {
     public function __construct(
-        private readonly ConversionScheduler $scheduler,
-        private readonly IriConverterInterface $iriConverter,
+        private ConversionScheduler $scheduler,
+        private IriConverterInterface $iriConverter,
     ) {
     }
 
-    public function __invoke(Request $request, string $fileId): Response
+    public function __invoke(Request $request, string $fileId): JsonResponse
     {
         $conversion = $this->scheduler->schedule($request, $fileId);
 

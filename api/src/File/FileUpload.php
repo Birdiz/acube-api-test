@@ -20,15 +20,15 @@ use Symfony\Component\HttpFoundation\Request;
  * Turns a multipart request into a stored file. PHP's error code is read
  * before the contents: a file PHP rejected has none worth reading.
  */
-final class FileUpload
+final readonly class FileUpload
 {
     public function __construct(
         #[Autowire('%env(int:FILE_MAX_SIZE_BYTES)%')]
-        private readonly int $maxSizeBytes,
+        private int $maxSizeBytes,
         #[Autowire('%kernel.project_dir%/var/uploads')]
-        private readonly string $directory,
-        private readonly Filesystem $filesystem,
-        private readonly EntityManagerInterface $entityManager,
+        private string $directory,
+        private Filesystem $filesystem,
+        private EntityManagerInterface $entityManager,
     ) {
     }
 

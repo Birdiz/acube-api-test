@@ -7,19 +7,18 @@ namespace App\Controller;
 use App\Conversion\ConversionDocument;
 use App\Repository\ConversionRepository;
 use Symfony\Component\HttpFoundation\JsonResponse;
-use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Attribute\AsController;
 
 #[AsController]
-final class ShowConversion
+final readonly class ShowConversion
 {
     public function __construct(
-        private readonly ConversionRepository $conversions,
-        private readonly ConversionDocument $document,
+        private ConversionRepository $conversions,
+        private ConversionDocument $document,
     ) {
     }
 
-    public function __invoke(string $id): Response
+    public function __invoke(string $id): JsonResponse
     {
         $response = new JsonResponse($this->document->of($this->conversions->withId($id)));
 

@@ -9,6 +9,7 @@ use App\Tests\Api\Support\ApiClient;
 use App\Tests\Api\Support\ConversionQueue;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Tools\SchemaTool;
+use Symfony\Bundle\FrameworkBundle\Test\TestContainer;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -33,7 +34,10 @@ abstract class ApiTestCase extends WebTestCase
         $browser->disableReboot();
 
         $this->api = new ApiClient($browser, ApiAssert::noServerError(...));
-        $this->queue = new ConversionQueue(static::getContainer());
+        $container = static::getContainer();
+        self::assertInstanceOf(TestContainer::class, $container, 'The suite needs the test container to drain the queue.');
+
+        $this->queue = new ConversionQueue($container);
 
         $this->resetDatabase();
     }
@@ -55,7 +59,7 @@ abstract class ApiTestCase extends WebTestCase
     {
         $configured = $_ENV['FILE_MAX_SIZE_BYTES'] ?? null;
 
-        self::assertNotNull($configured, 'FILE_MAX_SIZE_BYTES must be configured.');
+        self::assertIsNumeric($configured, 'FILE_MAX_SIZE_BYTES must be configured.');
 
         return (int) $configured;
     }
@@ -72,7 +76,7 @@ abstract class ApiTestCase extends WebTestCase
             \sprintf('Expected %s to be accepted as a source file.', basename($path)),
         );
 
-        return ApiAssert::json($response)['id'];
+        return ApiAssert::stringField(ApiAssert::json($response), 'id');
     }
 
     protected function requestConversion(string $fileId, string $format): string
@@ -84,13 +88,12 @@ abstract class ApiTestCase extends WebTestCase
             \sprintf('Expected a conversion to "%s" to be accepted.', $format),
         );
 
-        return ApiAssert::json($response)['id'];
+        return ApiAssert::stringField(ApiAssert::json($response), 'id');
     }
 
     private function resetDatabase(): void
     {
         $entityManager = static::getContainer()->get(EntityManagerInterface::class);
-        \assert($entityManager instanceof EntityManagerInterface);
 
         $metadata = $entityManager->getMetadataFactory()->getAllMetadata();
 

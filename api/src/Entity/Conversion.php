@@ -6,6 +6,7 @@ namespace App\Entity;
 
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Get;
+use ApiPlatform\Metadata\Link;
 use ApiPlatform\Metadata\Post;
 use App\Controller\DownloadConversionResult;
 use App\Controller\RequestConversion;
@@ -25,6 +26,11 @@ use Symfony\Component\Uid\Ulid;
     operations: [
         new Post(
             uriTemplate: '/files/{fileId}/conversions',
+            // Named, or the generated docs advertise a parameter called `id`
+            // and Swagger UI sends `{fileId}` through unsubstituted.
+            uriVariables: [
+                'fileId' => new Link(fromClass: File::class, identifiers: ['id']),
+            ],
             status: Response::HTTP_ACCEPTED,
             controller: RequestConversion::class,
             input: ConversionRequest::class,

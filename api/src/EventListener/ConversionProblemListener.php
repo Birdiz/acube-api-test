@@ -27,13 +27,13 @@ final class ConversionProblemListener
 
         $event->setResponse(new JsonResponse(
             [
-                'type' => $problem->type(),
-                'title' => $problem->title(),
-                'status' => $problem->status(),
+                'type' => $problem->type,
+                'title' => $problem->title,
+                'status' => $problem->status,
                 'detail' => $problem->getMessage(),
-                ...$problem->extensions(),
+                ...$problem->extensions,
             ],
-            $problem->status(),
+            $problem->status,
             ['Content-Type' => 'application/problem+json'],
         ));
 

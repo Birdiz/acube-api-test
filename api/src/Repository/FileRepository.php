@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Repository;
 
 use App\Entity\File;
-use App\File\Exception\UnknownFile;
+use App\Conversion\Exception\ConversionProblem;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
@@ -17,9 +17,9 @@ final class FileRepository extends ServiceEntityRepository
         parent::__construct($registry, File::class);
     }
 
-    /** Doctrine answers null; the API answers 404. @throws UnknownFile */
+    /** Doctrine answers null; the API answers 404. @throws ConversionProblem */
     public function withId(string $fileId): File
     {
-        return $this->find($fileId) ?? throw UnknownFile::withId($fileId);
+        return $this->find($fileId) ?? throw ConversionProblem::unknownFile($fileId);
     }
 }

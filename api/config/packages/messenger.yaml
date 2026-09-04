@@ -1,7 +1,5 @@
 framework:
     messenger:
-        failure_transport: failed
-
         transports:
             # Conversion jobs are long-running: they never run inside the
             # request/response cycle. See docs/architecture.md.
@@ -11,11 +9,11 @@ framework:
                     queue_name: conversions
                     # How long a worker killed mid-job holds the message.
                     redeliver_timeout: 300
+                # No retries: the conversion records its own failure, and a
+                # caller polling the status must not be told a job is over
+                # while another attempt could still turn it around.
                 retry_strategy:
-                    max_retries: 3
-                    delay: 5000
-                    multiplier: 3
-            failed: 'doctrine://default?queue_name=failed'
+                    max_retries: 0
 
         routing:
             'App\Message\RunConversion': conversions
@@ -27,4 +25,3 @@ when@test:
                 # Held in memory so tests can assert on a *pending* conversion
                 # and then drain the queue explicitly. See tests/Api/ApiTestCase.
                 conversions: 'in-memory://'
-                failed: 'in-memory://'

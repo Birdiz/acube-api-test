@@ -4,12 +4,9 @@ declare(strict_types=1);
 
 namespace App\File;
 
+use App\Conversion\Exception\ConversionProblem;
 use App\Conversion\SourceFormat;
 use App\Entity\File;
-use App\File\Exception\EmptyFile;
-use App\File\Exception\MissingFilePart;
-use App\File\Exception\PartialUpload;
-use App\File\Exception\UploadTooLarge;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Filesystem\Filesystem;
@@ -65,7 +62,7 @@ final readonly class FileUpload
             return $upload;
         }
 
-        throw MissingFilePart::inMultipartBody();
+        throw ConversionProblem::missingFilePart();
     }
 
     private function failOnPhpError(UploadedFile $upload): void
@@ -73,23 +70,17 @@ final readonly class FileUpload
         match ($upload->getError()) {
             \UPLOAD_ERR_OK => null,
             // FORM_SIZE is the caller's own MAX_FILE_SIZE field: still a size breach.
-            \UPLOAD_ERR_INI_SIZE, \UPLOAD_ERR_FORM_SIZE => throw UploadTooLarge::refusedByPhp($this->maxSizeBytes),
-            \UPLOAD_ERR_PARTIAL => throw PartialUpload::wasReceived(),
+            \UPLOAD_ERR_INI_SIZE, \UPLOAD_ERR_FORM_SIZE => throw ConversionProblem::uploadRefusedByPhp($this->maxSizeBytes),
+            \UPLOAD_ERR_PARTIAL => throw ConversionProblem::partialUpload(),
             // A full disk or an unwritable temp dir is ours, not the caller's.
             default => throw new \RuntimeException($upload->getErrorMessage()),
         };
     }
 
-    /** Arbitrary bytes of arbitrary length, so it is made printable and cut to size. */
+    /** Of arbitrary length, and the column it lands in is not. */
     private function filename(UploadedFile $upload): string
     {
-        $name = $upload->getClientOriginalName();
-
-        if (!mb_check_encoding($name, 'UTF-8')) {
-            $name = mb_convert_encoding($name, 'UTF-8', 'UTF-8');
-        }
-
-        return mb_substr($name, 0, File::MAX_FILENAME_LENGTH);
+        return mb_substr($upload->getClientOriginalName(), 0, File::MAX_FILENAME_LENGTH);
     }
 
     private function size(UploadedFile $upload): int
@@ -101,11 +92,11 @@ final readonly class FileUpload
         }
 
         if (0 === $size) {
-            throw EmptyFile::wasUploaded();
+            throw ConversionProblem::emptyFile();
         }
 
         if ($size > $this->maxSizeBytes) {
-            throw UploadTooLarge::forSize($size, $this->maxSizeBytes);
+            throw ConversionProblem::uploadTooLarge($size, $this->maxSizeBytes);
         }
 
         return $size;

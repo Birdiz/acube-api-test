@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Conversion;
 
-use App\Conversion\Exception\MalformedBody;
+use App\Conversion\Exception\ConversionProblem;
 use App\Entity\Conversion;
 use App\Message\RunConversion;
 use App\Repository\FileRepository;
@@ -50,7 +50,7 @@ final readonly class ConversionScheduler
         try {
             $payload = $request->toArray();
         } catch (\UnexpectedValueException $invalid) {
-            throw MalformedBody::isNotJson($invalid);
+            throw ConversionProblem::malformedBody($invalid);
         }
 
         $requested = $payload['format'] ?? '';

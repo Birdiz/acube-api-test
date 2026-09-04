@@ -29,26 +29,16 @@ final readonly class ConversionResult
         return $this->filesystem->readFile($this->pathFor($conversion));
     }
 
-    /** The id is the fallback because it is ASCII and separator-free by construction. */
-    public function downloadName(Conversion $conversion): string
-    {
-        $stem = pathinfo($conversion->file()->originalFilename(), \PATHINFO_FILENAME);
-
-        // Not a separator on Linux, so pathinfo() leaves it in; makeDisposition refuses it.
-        $stem = str_replace('\\', '-', $stem);
-
-        return \sprintf(
-            '%s.%s',
-            '' === $stem ? $conversion->id() : $stem,
-            $conversion->targetFormat()->value,
-        );
-    }
-
+    /**
+     * Named after the conversion, not after the file it came from: the id is
+     * ASCII and separator-free by construction, so there is nothing to sanitise
+     * and no fallback to pick when sanitising leaves nothing behind. The caller
+     * still has the original name — they sent it.
+     */
     public function disposition(Conversion $conversion): string
     {
         return HeaderUtils::makeDisposition(
             HeaderUtils::DISPOSITION_ATTACHMENT,
-            $this->downloadName($conversion),
             \sprintf('%s.%s', $conversion->id(), $conversion->targetFormat()->value),
         );
     }

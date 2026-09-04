@@ -9,14 +9,4 @@ enum ConversionUri: string
 {
     case Status = '/conversions/{id}';
     case Result = '/conversions/{id}/result';
-
-    /**
-     * Without this, IriConverter builds whichever operation is declared first.
-     *
-     * @return array{item_uri_template: string}
-     */
-    public function iriContext(): array
-    {
-        return ['item_uri_template' => $this->value];
-    }
 }

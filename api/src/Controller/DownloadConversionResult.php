@@ -8,7 +8,7 @@ use ApiPlatform\Metadata\IriConverterInterface;
 use App\Conversion\ConversionResult;
 use App\Conversion\ConversionStatus;
 use App\Conversion\ConversionUri;
-use App\Conversion\Exception\ResultNotReady;
+use App\Conversion\Exception\ConversionProblem;
 use App\Entity\Conversion;
 use App\Repository\ConversionRepository;
 use Symfony\Component\HttpFoundation\Response;
@@ -29,7 +29,7 @@ final readonly class DownloadConversionResult
         $conversion = $this->conversions->withId($id);
 
         if (ConversionStatus::Done !== $conversion->status()) {
-            throw ResultNotReady::forStatus($conversion->status(), $this->statusUrl($conversion));
+            throw ConversionProblem::resultNotReady($conversion->status(), $this->statusUrl($conversion));
         }
 
         // Read whole rather than streamed: a result is bounded by the upload it
@@ -50,7 +50,8 @@ final readonly class DownloadConversionResult
         // just persisted: ours to fix, never the caller's to work around.
         return $this->iriConverter->getIriFromResource(
             $conversion,
-            context: ConversionUri::Status->iriContext(),
+            // Without this, IriConverter builds whichever item GET is declared first.
+            context: ['item_uri_template' => ConversionUri::Status->value],
         ) ?? throw new \LogicException(\sprintf('Conversion %s has no status IRI.', $conversion->id()));
     }
 }

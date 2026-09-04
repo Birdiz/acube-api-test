@@ -88,11 +88,6 @@ final readonly class ApiClient
         return $this->capture();
     }
 
-    public function response(): Response
-    {
-        return $this->browser->getResponse();
-    }
-
     private function capture(): Response
     {
         $response = $this->browser->getResponse();

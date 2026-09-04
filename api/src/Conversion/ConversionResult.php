@@ -8,7 +8,6 @@ use App\Entity\Conversion;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\HttpFoundation\HeaderUtils;
-use Symfony\Component\Filesystem\Exception\IOException;
 
 /** As with an upload, the location is derived from the id: a stored path would be one container's. */
 final readonly class ConversionResult

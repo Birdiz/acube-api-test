@@ -20,7 +20,7 @@ final readonly class UploadFile
     ) {
     }
 
-    public function __invoke(Request $request): \Symfony\Component\HttpFoundation\JsonResponse
+    public function __invoke(Request $request): JsonResponse
     {
         $file = $this->upload->receive($request);
 

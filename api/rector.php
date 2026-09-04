@@ -24,6 +24,11 @@ return RectorConfig::configure()
         typeDeclarations: true,
         earlyReturn: true,
     )
+    // Rector writes a narrowed type fully qualified unless told otherwise, and
+    // a FQCN in a signature is a name the reader has to parse instead of read.
+    // Short classes stay as \LogicException: the leading backslash is how this
+    // codebase says "global namespace", not an import it forgot.
+    ->withImportNames(importShortClasses: false)
     ->withSkip([
         // Entity properties carry their Doctrine mapping. Promoting them folds
         // #[ORM\Column] attributes into the constructor signature, where the

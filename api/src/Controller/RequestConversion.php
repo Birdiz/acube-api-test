@@ -21,7 +21,7 @@ final readonly class RequestConversion
     ) {
     }
 
-    public function __invoke(Request $request, string $fileId): \Symfony\Component\HttpFoundation\JsonResponse
+    public function __invoke(Request $request, string $fileId): JsonResponse
     {
         $conversion = $this->scheduler->schedule($request, $fileId);
 

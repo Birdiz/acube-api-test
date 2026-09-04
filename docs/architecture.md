@@ -1,12 +1,5 @@
 # Architecture
 
-## The problem
-
-A customer sends a file and wants it back in another format. The conversion
-takes more than two minutes. The file's contents and size are unknown up front.
-
-Everything below follows from that.
-
 ## Why `202 Accepted`
 
 A conversion cannot be the response to the request that asks for it: proxies and
@@ -31,8 +24,6 @@ Uploading is its own step so the bytes are validated while the customer is still
 on the connection, and so one upload can be converted more than once.
 
 ### What 202 obliges us to do
-
-Each of these is pinned by a test:
 
 - **Everything knowable is decided before the 202.** An unsupported format is a
   `422` on this request, not a job that runs for two minutes and ends `failed`.

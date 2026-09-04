@@ -1,5 +1,46 @@
 # acube-api-test
 
+## Personal thoughts
+
+So I must admit: I went to far with the test! 
+But I felt real pleasure doing it.
+
+Second point to admit: I used AI at every step of the task, 
+but I did it intentionally, here is how I used it:
+1. I took the test and thought of a plan. 
+I identified that the test is asking for an async action.
+The 2 min are not from anywhere, most of the most we face a timeout at 30s and even the browser apply a 1min timeout.
+Finally, not knowing the size and type of file means high validation at the very beginning, early return before executing anything.
+I wrote that to my agent, asking to challenge every piece of it. My goal was to identify more edge cases.
+I decided to use more precise HTTP codes instead of the basic Symfony Validation, Param Converter and API Platform native error messages:
+I wanted to go RESTful, RCF friendly and HTTP CLient friendly.
+Both ODS and XLSX are ZIP files: on step further would be to take security to another level and check for malicious code.
+2. Scaffolding the project (dockerization) is done by the agent after I listed what I needed: 
+a simple PHP server using Franken,
+a SQLLite database for the FactStoring pattern
+No XDebug (I don't like it I must admit)
+No Logger, CI & production stage, as it a simple test
+3. I decided the packages and component.
+API Platform, Messenger, Twig for the API doc, Code quality tool, PHPUnit even if I prefer Behat. 
+And I like to work TDD. When all of this was cleared out with the agent: it did the dirty work.
+The robot beats the human on that part, tests writing is often biaised because you think your code is bugless.
+The robot has no such feelings.
+4. Agent is coding each part of the logic based on the tests.
+Then starts a tennis table work: it creates a PR, I review it carefully and send back my comments until I am satisfied.
+I think this is one of the best way to work: Human controls what the robots is producing and I am still owning and fully understanding 
+what is created. If I don't understand a piece of code, it means that the agent went not in my direction.
+5. Global review. Once I am satisfied, I ask the agent for a deep review.
+6. Documentation is donc by the agent and reworked by me.
+7. I finally conducted manual testing, as a dev + QA would do. That led me to notice 2 errors:
+- the location after uploading a file was wrong
+- the path param on POST conversions was not correctly configured on the ApiResource attribute
+
+If you check the close PR, you'll see I tried to scope the work to have small/medium sized PR and if you check 
+the commits of a PR, you'll see the corrections I asked to the agent.
+I hope it gaves a good overview of what can be achieved in ~7h of work (a day).
+
+## Context
+
 A Symfony 8.1 / API Platform 4.3 API running on FrankenPHP, orchestrated with
 Docker Compose and driven through a small Makefile.
 

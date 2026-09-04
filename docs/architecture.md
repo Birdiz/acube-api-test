@@ -9,6 +9,7 @@ serving traffic. So the request and the work are separated:
 
 ```
 POST /api/files                        201  -> file id
+GET  /api/files/{id}                   200  -> what we made of the upload
 POST /api/files/{id}/conversions       202  -> conversion id + status URL
 GET  /api/conversions/{id}             200  -> status
 GET  /api/conversions/{id}/result      200  -> the converted file
@@ -24,7 +25,11 @@ Three obligations follow:
 - **Everything knowable is decided before the `202`.** An unsupported format is a
   `422` on this request, not a job that runs two minutes and ends `failed`.
 - **The `Location` is real immediately.** The record is written in the same
-  transaction that accepts the request; the job is queued after it.
+  transaction that accepts the request; the job is queued after it. "Real"
+  means answerable, not merely spellable: every address handed out has an
+  operation behind it, and the suite follows each one rather than matching the
+  string — API Platform will happily generate an IRI for a resource with no
+  `Get`, and route it to `not_exposed`.
 - **The status resource is honest while pending** — `no-store`, and the same keys
   in every state (`id`, `status`, `format`, `file_id`, `created_at`,
   `completed_at`, `error`), carrying `null` rather than going missing. A caller

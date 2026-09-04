@@ -23,7 +23,6 @@ use Symfony\Component\HttpFoundation\Response;
 #[TestDox('POST /api/files')]
 final class FileUploadTest extends ApiTestCase
 {
-
     /** @return iterable<string, array{string}> */
     public static function supportedSourceFiles(): iterable
     {

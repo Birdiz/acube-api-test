@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Entity;
 
 use ApiPlatform\Metadata\ApiResource;
+use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\Post;
+use App\Controller\ShowFile;
 use App\Controller\UploadFile;
 use App\Conversion\SourceFormat;
 use App\File\FileUploadRequest;
@@ -32,6 +34,15 @@ use Symfony\Component\Uid\Ulid;
             validate: false,
             write: false,
             read: false,
+        ),
+        // The address the `Location` above names. Without it API Platform still
+        // generates the IRI, but routes it to `not_exposed`: a 201 pointing at
+        // a 404.
+        new Get(
+            uriTemplate: '/files/{id}',
+            controller: ShowFile::class,
+            read: false,
+            serialize: false,
         ),
     ],
 )]
@@ -82,5 +93,15 @@ class File
     public function sourceFormat(): SourceFormat
     {
         return $this->sourceFormat;
+    }
+
+    public function sizeBytes(): int
+    {
+        return $this->sizeBytes;
+    }
+
+    public function createdAt(): \DateTimeImmutable
+    {
+        return $this->createdAt;
     }
 }

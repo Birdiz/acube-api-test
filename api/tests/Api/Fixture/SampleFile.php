@@ -14,11 +14,11 @@ use App\Conversion\SourceFormat;
  * XLSX and ODS are ZIP containers and the API must tell them apart from a
  * plain archive by their internal layout, so these are proper containers
  * rather than renamed zips — a fixture that cheated here would let a broken
- * type check pass.
+ * type check pass. They are empty ones: the layout is what is under test.
  */
 final class SampleFile
 {
-    /** The rows every sample encodes, so the four source types carry the same data. */
+    /** The rows the text samples encode; the ZIP containers carry no data by design. */
     public const array ROWS = [
         ['id' => '1', 'name' => 'Ada Lovelace', 'role' => 'analyst'],
         ['id' => '2', 'name' => 'Grace Hopper', 'role' => 'admiral'],
@@ -86,7 +86,13 @@ final class SampleFile
             </Relationships>
             XML);
 
-        $zip->addFromString('xl/worksheets/sheet1.xml', self::spreadsheetMlRows());
+        // Empty on purpose: the API identifies the container, and the stub
+        // conversion never opens it. Cells no one reads are cells that lie
+        // about what this fixture proves.
+        $zip->addFromString('xl/worksheets/sheet1.xml', <<<'XML'
+            <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+            <worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData/></worksheet>
+            XML);
         $zip->close();
 
         return $path;
@@ -109,7 +115,14 @@ final class SampleFile
             </manifest:manifest>
             XML, self::odsMediaType()));
 
-        $zip->addFromString('content.xml', self::openDocumentRows());
+        $zip->addFromString('content.xml', <<<'XML'
+            <?xml version="1.0" encoding="UTF-8"?>
+            <office:document-content office:version="1.2"
+                xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"
+                xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0">
+              <office:body><office:spreadsheet><table:table table:name="Sheet1"/></office:spreadsheet></office:body>
+            </office:document-content>
+            XML);
         $zip->close();
 
         return $path;
@@ -161,52 +174,10 @@ final class SampleFile
         }
     }
 
-    private static function spreadsheetMlRows(): string
-    {
-        $rows = '<row r="1">'.implode('', array_map(
-            static fn (string $header): string => \sprintf('<c t="inlineStr"><is><t>%s</t></is></c>', $header),
-            array_keys(self::ROWS[0]),
-        )).'</row>';
-
-        foreach (self::ROWS as $index => $row) {
-            $rows .= \sprintf('<row r="%d">', $index + 2).implode('', array_map(
-                static fn (string $value): string => \sprintf('<c t="inlineStr"><is><t>%s</t></is></c>', $value),
-                array_values($row),
-            )).'</row>';
-        }
-
-        return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
-            .'<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
-            .'<sheetData>'.$rows.'</sheetData></worksheet>';
-    }
-
-    private static function openDocumentRows(): string
-    {
-        $cell = static fn (string $value): string => \sprintf(
-            '<table:table-cell office:value-type="string"><text:p>%s</text:p></table:table-cell>',
-            $value,
-        );
-
-        $rows = '<table:table-row>'.implode('', array_map($cell, array_keys(self::ROWS[0]))).'</table:table-row>';
-        foreach (self::ROWS as $row) {
-            $rows .= '<table:table-row>'.implode('', array_map($cell, array_values($row))).'</table:table-row>';
-        }
-
-        return '<?xml version="1.0" encoding="UTF-8"?>'
-            .'<office:document-content office:version="1.2"'
-            .' xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"'
-            .' xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0"'
-            .' xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0">'
-            .'<office:body><office:spreadsheet><table:table table:name="Sheet1">'
-            .$rows
-            .'</table:table></office:spreadsheet></office:body></office:document-content>';
-    }
-
     /**
      * OpenDocument requires this string as the archive's first, uncompressed
-     * entry, and
-     * it is what libmagic reads to identify the file — so it is the same value
-     * SourceFormat detects by.
+     * entry, and it is what libmagic reads to identify the file — so it is the
+     * same value SourceFormat detects by.
      */
     private static function odsMediaType(): string
     {

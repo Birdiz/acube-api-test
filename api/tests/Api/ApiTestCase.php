@@ -42,15 +42,6 @@ abstract class ApiTestCase extends WebTestCase
         $this->resetDatabase();
     }
 
-    protected function tearDown(): void
-    {
-        parent::tearDown();
-
-        // Fixtures are *not* cleaned up here. Data providers resolve their
-        // paths while the suite loads, so deleting files mid-run would break
-        // tests that have not started. bootstrap.php clears them once.
-    }
-
     /**
      * The configured upload limit, read rather than duplicated: a test that
      * hardcodes it would keep passing after the limit moved.

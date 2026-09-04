@@ -9,6 +9,7 @@ serving traffic. So the request and the work are separated:
 
 ```
 POST /api/files                        201  -> file id
+GET  /api/files/{id}                   200  -> what we made of the upload
 POST /api/files/{id}/conversions       202  -> conversion id + status URL
 GET  /api/conversions/{id}             200  -> status
 GET  /api/conversions/{id}/result      200  -> the converted file
@@ -24,7 +25,11 @@ Three obligations follow:
 - **Everything knowable is decided before the `202`.** An unsupported format is a
   `422` on this request, not a job that runs two minutes and ends `failed`.
 - **The `Location` is real immediately.** The record is written in the same
-  transaction that accepts the request; the job is queued after it.
+  transaction that accepts the request; the job is queued after it. "Real"
+  means answerable, not merely spellable: every address handed out has an
+  operation behind it, and the suite follows each one rather than matching the
+  string — API Platform will happily generate an IRI for a resource with no
+  `Get`, and route it to `not_exposed`.
 - **The status resource is honest while pending** — `no-store`, and the same keys
   in every state (`id`, `status`, `format`, `file_id`, `created_at`,
   `completed_at`, `error`), carrying `null` rather than going missing. A caller
@@ -143,6 +148,16 @@ never the classes behind them.
 - **SQLite + Doctrine transport.** Zero infrastructure, transactional enqueueing
   for free. First thing to replace under real concurrency — SQLite serialises
   writers.
+- **No worker service in Compose.** `docker compose up` starts the API and
+  nothing that drains the queue, so out of the box a conversion stays `pending`
+  until someone runs `messenger:consume` by hand. Deliberate for a reviewer's
+  checkout — the worker is the thing under discussion, and one that restarts
+  silently in the background is one you cannot watch fail — but it is the wrong
+  default anywhere else, and it puts a README step between a reader and the
+  feature the whole design exists for. A second service running
+  `messenger:consume conversions --time-limit=3600` with `restart: unless-stopped`
+  is the deployment shape; production also wants a supervisor and more than one
+  of them, which is the point at which SQLite has to go too.
 - **A hand-rolled state machine, not Symfony Workflow.** Four states, three
   `mark*` methods and one guard. Workflow fits the shape exactly and would declare
   the transitions in one place, but a bundle and a YAML definition for that is

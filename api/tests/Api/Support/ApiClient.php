@@ -80,6 +80,11 @@ final readonly class ApiClient
         return $this->capture();
     }
 
+    public function getFile(string $fileId): Response
+    {
+        return $this->get(\sprintf('/api/files/%s', $fileId));
+    }
+
     public function getConversion(string $conversionId): Response
     {
         return $this->get(\sprintf('/api/conversions/%s', $conversionId));

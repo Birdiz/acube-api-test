@@ -105,6 +105,7 @@ the implementation was driven until it satisfied it. The suite is green.
 | Test class | What it pins down |
 | --- | --- |
 | `FileUploadTest` | `POST /api/files`: accepted types, type detection from content, the size limit |
+| `FileDetailsTest` | `GET /api/files/{id}`: the address the upload's `Location` names, and what it reports |
 | `ConversionRequestTest` | `POST /api/files/{id}/conversions`: the `202`, and rejecting the impossible up front |
 | `ConversionStatusTest` | `GET /api/conversions/{id}`: the resource the `202` points at |
 | `ConversionResultTest` | `GET /api/conversions/{id}/result`: the file, and `409` when it is not ready |

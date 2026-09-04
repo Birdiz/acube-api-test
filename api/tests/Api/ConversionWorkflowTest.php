@@ -19,7 +19,6 @@ use Symfony\Component\HttpFoundation\Response;
 #[TestDox('The conversion workflow')]
 final class ConversionWorkflowTest extends ApiTestCase
 {
-
     #[Test]
     #[TestDox('takes a customer from upload to converted file')]
     public function itTakesACustomerFromUploadToResult(): void
@@ -69,8 +68,13 @@ final class ConversionWorkflowTest extends ApiTestCase
         $startedAt = microtime(true);
 
         $fileId = $this->uploadFile(SampleFile::csv());
-        $this->requestConversion($fileId, 'json');
-        $this->api->getConversionResult($fileId);
+        $conversionId = $this->requestConversion($fileId, 'json');
+
+        // The result of a job nobody has run yet: the slowest of the three, and
+        // still a short request. Named, or this times a 404 on an id that is
+        // not a conversion's and proves nothing about the path it means to.
+        $this->api->getConversionResult($conversionId);
+        self::assertResponseStatusCodeSame(Response::HTTP_CONFLICT);
 
         $elapsed = microtime(true) - $startedAt;
 

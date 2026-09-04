@@ -4,8 +4,7 @@ A Symfony 8.1 / API Platform 4.3 API running on FrankenPHP, orchestrated with
 Docker Compose and driven through a small Makefile.
 
 It converts uploaded files (CSV, JSON, XLSX, ODS) into JSON or XML. The
-conversion takes longer than a request can wait, so it runs as a background job:
-`POST` returns `202 Accepted` with a URL to poll.
+conversion takes longer than a request can wait, so it runs as a background job.
 
 See [docs/architecture.md](docs/architecture.md) for why the API is shaped that
 way — the `202` decision, the status codes it forces (notably `409` rather than
@@ -92,13 +91,6 @@ make up HTTP_PORT=8080
 make exec CMD="php bin/console debug:router"
 ```
 
-```bash
-make exec
-```
-
-The last one drops you into a shell inside the container, where `composer` and
-`bin/console` are on the `PATH`.
-
 ### Running the tests
 
 ```bash
@@ -121,7 +113,7 @@ the implementation was driven until it satisfied it. The suite is green.
 | `ConversionRunnerTest` | `failed` — the one state a functional test cannot reach, since a stub conversion cannot trip |
 
 Conversion jobs are queued on the `conversions` Messenger transport. A worker
-consumes it — in dev as much as in production. Without one running, a conversion
+consumes it. Without one running, a conversion
 stays `pending` and its result keeps answering `409`:
 
 ```bash
@@ -143,11 +135,6 @@ Symfony, Doctrine and PHPUnit extensions. The run is clean with **no baseline
 and no ignored errors** — a baseline would make the level a claim about the code
 that was true once. The target warms the test container first because the
 Symfony extension reads it to resolve the service ids the harness fetches.
-
-Analysing the tests as well as the source is the part that paid: the source held
-a dead `catch`, an unused method and an IRI that could be `null`; the harness
-was passing `mixed` into assertions that expect strings, and guarding a service
-id against an absence the container reports better itself.
 
 ```bash
 make refactor

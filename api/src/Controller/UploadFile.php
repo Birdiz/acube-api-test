@@ -12,15 +12,15 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Attribute\AsController;
 
 #[AsController]
-final class UploadFile
+final readonly class UploadFile
 {
     public function __construct(
-        private readonly FileUpload $upload,
-        private readonly IriConverterInterface $iriConverter,
+        private FileUpload $upload,
+        private IriConverterInterface $iriConverter,
     ) {
     }
 
-    public function __invoke(Request $request): Response
+    public function __invoke(Request $request): \Symfony\Component\HttpFoundation\JsonResponse
     {
         $file = $this->upload->receive($request);
 

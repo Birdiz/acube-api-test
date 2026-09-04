@@ -15,14 +15,14 @@ use Symfony\Component\HttpFoundation\Response;
  * invariants are checked as each response arrives without this class knowing
  * anything about assertions.
  */
-final class ApiClient
+final readonly class ApiClient
 {
     /** @var \Closure(Response): void */
-    private readonly \Closure $onResponse;
+    private \Closure $onResponse;
 
     /** @param callable(Response): void $onResponse before the caller sees it */
     public function __construct(
-        private readonly KernelBrowser $browser,
+        private KernelBrowser $browser,
         callable $onResponse,
     ) {
         $this->onResponse = $onResponse(...);

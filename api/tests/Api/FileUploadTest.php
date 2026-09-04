@@ -58,7 +58,7 @@ final class FileUploadTest extends ApiTestCase
         $problem = ApiAssert::problem($response, Response::HTTP_UNSUPPORTED_MEDIA_TYPE);
         self::assertStringContainsStringIgnoringCase(
             'pdf',
-            $problem['detail'],
+            ApiAssert::stringField($problem, 'detail'),
             'The error should name the type that was refused, so the caller can fix it.',
         );
     }
@@ -114,7 +114,7 @@ final class FileUploadTest extends ApiTestCase
         $problem = ApiAssert::problem($response, Response::HTTP_REQUEST_ENTITY_TOO_LARGE);
         self::assertStringContainsString(
             (string) $this->maxUploadBytes(),
-            $problem['detail'],
+            ApiAssert::stringField($problem, 'detail'),
             'The error should state the limit, so the caller knows what to aim for.',
         );
     }
@@ -129,7 +129,7 @@ final class FileUploadTest extends ApiTestCase
         $response = $this->api->postFile(SampleFile::csv(), error: \UPLOAD_ERR_INI_SIZE);
 
         $problem = ApiAssert::problem($response, Response::HTTP_REQUEST_ENTITY_TOO_LARGE);
-        self::assertStringContainsString((string) $this->maxUploadBytes(), $problem['detail']);
+        self::assertStringContainsString((string) $this->maxUploadBytes(), ApiAssert::stringField($problem, 'detail'));
     }
 
     #[Test]

@@ -14,11 +14,11 @@ use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
  * test has no background process to run. Without it, "pending" and "done"
  * would be a race against a sleep rather than two states a test can order.
  */
-final class ConversionQueue
+final readonly class ConversionQueue
 {
     private const string TRANSPORT = 'conversions';
 
-    public function __construct(private readonly ContainerInterface $container)
+    public function __construct(private ContainerInterface $container)
     {
     }
 

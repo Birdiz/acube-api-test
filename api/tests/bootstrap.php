@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use App\Tests\Api\Fixture\SampleFile;
 use Symfony\Component\Dotenv\Dotenv;
 
@@ -10,15 +12,14 @@ require dirname(__DIR__).'/vendor/autoload.php';
 // APP_ENV=test would be quietly overruled and the suite would boot the dev
 // kernel. Mirror it across all three sources before Dotenv looks at them.
 foreach (['APP_ENV' => 'test', 'APP_DEBUG' => '0'] as $key => $default) {
-    $value = $_SERVER[$key] ?? $default;
+    $current = $_SERVER[$key] ?? null;
+    $value = \is_string($current) ? $current : $default;
 
     $_ENV[$key] = $_SERVER[$key] = $value;
     putenv($key.'='.$value);
 }
 
-if (method_exists(Dotenv::class, 'bootEnv')) {
-    (new Dotenv())->bootEnv(dirname(__DIR__).'/.env');
-}
+(new Dotenv())->bootEnv(dirname(__DIR__).'/.env');
 
 if ($_SERVER['APP_DEBUG']) {
     umask(0000);

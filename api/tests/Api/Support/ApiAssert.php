@@ -52,10 +52,25 @@ final class ApiAssert extends Assert
         $decoded = json_decode($content, true);
         self::assertIsArray($decoded, \sprintf('Expected a JSON object, got: %s', substr($content, 0, 200)));
 
+        /** @var array<string, mixed> $decoded */
         return $decoded;
     }
 
-    /** @return non-empty-string the resolved URL, for following */
+    /**
+     * Reads a field the contract says is a string. A payload that disagrees is a
+     * failed expectation with the key named, not a type error further down.
+     *
+     * @param array<string, mixed> $payload
+     */
+    public static function stringField(array $payload, string $key): string
+    {
+        $value = $payload[$key] ?? null;
+        self::assertIsString($value, \sprintf('The payload must carry a string "%s".', $key));
+
+        return $value;
+    }
+
+    /** @return string the resolved URL, for following */
     public static function locationMatches(Response $response, string $template, string $id): string
     {
         $expected = str_replace('{id}', $id, $template);

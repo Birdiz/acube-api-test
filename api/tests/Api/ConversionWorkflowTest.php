@@ -28,7 +28,7 @@ final class ConversionWorkflowTest extends ApiTestCase
         //    us until it lands, so this is the step that validates both.
         $response = $this->api->postFile(SampleFile::xlsx());
         self::assertResponseStatusCodeSame(Response::HTTP_CREATED);
-        $fileId = ApiAssert::json($response)['id'];
+        $fileId = ApiAssert::stringField(ApiAssert::json($response), 'id');
         ApiAssert::locationMatches($response, '/api/files/{id}', $fileId);
 
         // 2. They ask for a conversion. The job runs for minutes, so the answer
@@ -36,7 +36,7 @@ final class ConversionWorkflowTest extends ApiTestCase
         $response = $this->api->postConversion($fileId, ['format' => 'xml']);
         self::assertResponseStatusCodeSame(Response::HTTP_ACCEPTED);
         $conversion = ApiAssert::json($response);
-        $conversionId = $conversion['id'];
+        $conversionId = ApiAssert::stringField($conversion, 'id');
         self::assertSame('pending', $conversion['status']);
         $statusUrl = ApiAssert::locationMatches($response, '/api/conversions/{id}', $conversionId);
 

@@ -1,0 +1,27 @@
+parameters:
+    level: 10
+    paths:
+        - src
+        - tests
+
+    # The extension reads a compiled container to know what the service ids in
+    # the test harness resolve to. It has to be the *test* one — that is where
+    # the framework makes private services fetchable — so `make analyse` warms
+    # it before running.
+    symfony:
+        containerXmlPath: var/cache/test/App_KernelTestDebugContainer.xml
+
+    # The queue harness fetches services by id from the test container, which
+    # deliberately exposes what production keeps private. The extension only
+    # sees the compiled container, so it reads those fetches as impossible and
+    # everything after the guard as unreachable.
+    ignoreErrors:
+        -
+            identifier: symfonyContainer.privateService
+            path: tests/Api/Support/ConversionQueue.php
+        -
+            identifier: booleanNot.alwaysTrue
+            path: tests/Api/Support/ConversionQueue.php
+        -
+            identifier: deadCode.unreachable
+            path: tests/Api/Support/ConversionQueue.php

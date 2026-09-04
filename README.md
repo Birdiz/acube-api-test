@@ -66,6 +66,8 @@ Run `make` (or `make help`) to list the available targets:
 | `make help` | Show the available targets (default target) |
 | `make up` | Build if needed, start the container and wait until it is healthy |
 | `make exec` | Open a shell in the container, or run `CMD="…"` |
+| `make analyse` | Run PHPStan at level 10 over `src/` and `tests/` |
+| `make refactor` | Show what Rector would change, or apply it with `APPLY=1` |
 | `make stop` | Stop the container without deleting it |
 | `make purge` | Remove the container, its volumes and the image built for it |
 
@@ -78,6 +80,7 @@ Every target accepts these variables as overrides:
 | `SERVICE` | `app` | Compose service targeted by `make exec` |
 | `CMD` | `sh` | Command run by `make exec` |
 | `COMPOSE` | `docker compose` | Compose binary to invoke |
+| `APPLY` | empty | Set to `1` to let `make refactor` write its changes |
 
 For example:
 
@@ -128,6 +131,34 @@ make exec CMD="php bin/console messenger:consume conversions"
 In tests the transport is in-memory and drained explicitly, which is what makes
 "not ready" and "ready" two ordered states instead of a race. See
 [docs/architecture.md](docs/architecture.md#in-tests).
+
+### Static analysis
+
+```bash
+make analyse
+```
+
+PHPStan runs at **level 10**, its maximum, over `src/` and `tests/` with the
+Symfony, Doctrine and PHPUnit extensions, and the run is clean. The target warms
+the test container first because the Symfony extension reads it to resolve
+service ids; three errors in `ConversionQueue` are ignored in
+`api/phpstan.dist.neon`, where the reason is written down — the harness fetches
+services the test container exposes on purpose and the compiled container says
+are private.
+
+Analysing the tests as well as the source is the part that paid: the source held
+a dead `catch`, an unused method and an IRI that could be `null`, and the
+harness was passing `mixed` into assertions that expect strings.
+
+```bash
+make refactor
+```
+
+Rector is configured in `api/rector.php` for a codebase with no legacy to
+upgrade — dead code, code quality, type declarations and early returns — and
+currently proposes nothing. Three rules are skipped, each because it would
+rewrite a decision this codebase already made rather than an oversight; the
+reasons are in the config next to the skip.
 
 ### Resetting the environment
 

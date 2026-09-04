@@ -11,12 +11,12 @@ use Symfony\Component\HttpFoundation\HeaderUtils;
 use Symfony\Component\Filesystem\Exception\IOException;
 
 /** As with an upload, the location is derived from the id: a stored path would be one container's. */
-final class ConversionResult
+final readonly class ConversionResult
 {
     public function __construct(
         #[Autowire('%kernel.project_dir%/var/results')]
-        private readonly string $directory,
-        private readonly Filesystem $filesystem,
+        private string $directory,
+        private Filesystem $filesystem,
     ) {
     }
 

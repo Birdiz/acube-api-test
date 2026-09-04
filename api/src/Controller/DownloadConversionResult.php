@@ -15,12 +15,12 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Attribute\AsController;
 
 #[AsController]
-final class DownloadConversionResult
+final readonly class DownloadConversionResult
 {
     public function __construct(
-        private readonly ConversionRepository $conversions,
-        private readonly ConversionResult $result,
-        private readonly IriConverterInterface $iriConverter,
+        private ConversionRepository $conversions,
+        private ConversionResult $result,
+        private IriConverterInterface $iriConverter,
     ) {
     }
 
@@ -46,9 +46,11 @@ final class DownloadConversionResult
 
     private function statusUrl(Conversion $conversion): string
     {
+        // A null here would mean API Platform cannot address a resource it has
+        // just persisted: ours to fix, never the caller's to work around.
         return $this->iriConverter->getIriFromResource(
             $conversion,
             context: ConversionUri::Status->iriContext(),
-        );
+        ) ?? throw new \LogicException(\sprintf('Conversion %s has no status IRI.', $conversion->id()));
     }
 }

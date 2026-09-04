@@ -34,7 +34,8 @@ final readonly class RequestConversion
             // Named rather than implied: a conversion has two item GETs.
             ['Location' => $this->iriConverter->getIriFromResource(
                 $conversion,
-                context: ConversionUri::Status->iriContext(),
+                // Without this, IriConverter builds whichever item GET is declared first.
+                context: ['item_uri_template' => ConversionUri::Status->value],
             )],
         );
     }

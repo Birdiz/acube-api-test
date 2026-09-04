@@ -50,7 +50,8 @@ final readonly class DownloadConversionResult
         // just persisted: ours to fix, never the caller's to work around.
         return $this->iriConverter->getIriFromResource(
             $conversion,
-            context: ConversionUri::Status->iriContext(),
+            // Without this, IriConverter builds whichever item GET is declared first.
+            context: ['item_uri_template' => ConversionUri::Status->value],
         ) ?? throw new \LogicException(\sprintf('Conversion %s has no status IRI.', $conversion->id()));
     }
 }

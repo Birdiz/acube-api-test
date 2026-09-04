@@ -213,6 +213,24 @@ only composes them.
   Workflow fits the shape exactly and would declare the transitions in one
   place, but a bundle and a YAML definition for four states and one guard is
   more to review than it saves. That flips as soon as the guards multiply.
+- **The generated schema describes the resource, not the response.** Every
+  operation declares an `input:` — `ConversionRequest`, `FileUploadRequest` —
+  so what a caller *sends* is documented exactly. None declares an `output:`,
+  so what a caller *gets* falls back to the entity, and the controllers write
+  their own bodies under `serialize: false`, which the schema never sees. The
+  `202` is published as `Conversion.jsonld` in `application/ld+json`; it is
+  `{"id", "status"}` in `application/json`. And since neither entity exposes a
+  property the serializer can see — `id()`, not `getId()` — `Conversion.jsonld`
+  and `File.jsonld` are *empty objects*: the document names a shape and then
+  describes nothing. `GET /conversions/{id}/result` is published the same way
+  and returns a file download. The error list drifted with it: the `409`, `413`
+  and `415` justified in the table above appear nowhere, nor does the `404` for
+  an unknown `fileId`. The fix is symmetry — an `output:` DTO per response,
+  serialization groups where one is shared between operations, and `openapi:`
+  responses for the errors the controllers can raise. Deferred because the
+  controllers are the contract the tests hold and the document is the copy that
+  drifted; `OpenApiDocumentationTest` now pins the paths and parameters, which
+  is where the drift was reaching callers, but says nothing yet about bodies.
 - **No retention policy.** Uploads and results are kept forever, in
   `var/uploads/` and `var/results/`; a real deployment needs a TTL.
 - **No authentication.** Ids are opaque rather than sequential, but that is

@@ -68,9 +68,10 @@ a caller sent and `SourceFormat::fromMimeType()` resolves what they actually
 uploaded; both throw rather than returning null, because "unsupported" is
 information the caller needs, not an absent value.
 
-Those throws are `ConversionProblem` subclasses, and each one carries everything
-its error response needs — status, type, title, and any extra field that makes
-it actionable, such as the `supported_formats` on a rejected format. Rendering
+Those throws are `ConversionProblem`s, built by the named constructor for the
+case at hand, and each one carries everything its error response needs — status,
+type, title, and any extra field that makes it actionable, such as the
+`supported_formats` on a rejected format. Rendering
 is therefore one place, and the code that detects a problem is the code that
 decides what the caller is told. A failure that is *not* a `ConversionProblem`
 is ours, and is the only thing allowed to become a 5xx.
@@ -119,20 +120,16 @@ way are read before the contents are:
 - `UPLOAD_ERR_PARTIAL` → `422`. The connection dropped mid-upload.
 
 **Past `post_max_size` the request is not handled specially.** PHP discards the
-whole body, so `$_FILES` is empty and the API answers `422` "no file was sent".
-Reading `Content-Length` and calling it `413` instead is a better answer, and an
-earlier version did exactly that — but it costs a parser for PHP's ini shorthand
-and a branch that no functional test can honestly reach, to improve the wording
-of a case a caller hits by sending a body twice the size of the stated limit.
-That is a poor trade in a codebase meant to be read, so the guess is gone. The
-first row of the table above is the layer we do not answer for.
+whole body, so `$_FILES` is empty and the API answers `422` "no file was sent" —
+the first row of the table is the layer we do not answer for. Guessing `413`
+from `Content-Length` would read better, but it takes a parser for PHP's ini
+shorthand and a branch no functional test can reach.
 
 Two caveats worth knowing. These PHP values are **compiled-in defaults**, not
-pinned in `docker/php/php.ini`, so a base-image change could move them silently;
-pinning them next to the app limit would remove that risk. And the functional
-tests construct `UploadedFile` objects directly, which never invokes PHP's real
-upload machinery — the tests above reproduce the *error codes* PHP would set,
-but only an HTTP request against a running container exercises the limits
+pinned in `docker/php/php.ini`, so a base-image change could move them silently.
+And the functional tests construct `UploadedFile` objects directly, which never
+invokes PHP's real upload machinery — they reproduce the *error codes* PHP would
+set, but only an HTTP request against a running container exercises the limits
 themselves.
 
 Raising the limit therefore means raising `upload_max_filesize` and
@@ -211,14 +208,11 @@ only composes them.
   for free. First thing to replace under real concurrency — SQLite serialises
   writers.
 - **A hand-rolled state machine, not Symfony Workflow.** `pending → processing
-  → done | failed` is a backed enum and three `mark*` methods on the entity,
-  and its only guard is the `match` in `ConversionRunner` that drops a
-  redelivery of finished work. Workflow fits the shape exactly: it would declare
-  the transitions in one place, guard them there rather than in the runner, and
-  give transition events for free. It was still refused — a bundle, a YAML
-  state-machine definition and a layer of indirection to follow, for four states
-  and one guard, is more to review than it saves. That trade flips as soon as
-  the states or their guards multiply.
+  → done | failed` is a backed enum, three `mark*` methods and one guard: the
+  `match` in `ConversionRunner` that drops a redelivery of finished work.
+  Workflow fits the shape exactly and would declare the transitions in one
+  place, but a bundle and a YAML definition for four states and one guard is
+  more to review than it saves. That flips as soon as the guards multiply.
 - **No retention policy.** Uploads and results are kept forever, in
   `var/uploads/` and `var/results/`; a real deployment needs a TTL.
 - **No authentication.** Ids are opaque rather than sequential, but that is

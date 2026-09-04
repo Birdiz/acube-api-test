@@ -118,7 +118,7 @@ the implementation was driven until it satisfied it. The suite is green.
 | `ConversionResultTest` | `GET /api/conversions/{id}/result`: the file, and `409` when it is not ready |
 | `ConversionWorkflowTest` | The four steps end to end, as a client actually walks them |
 | `SourceFormatTest`, `TargetFormatTest` | The format vocabulary in `src/Conversion/` |
-| `FailedConversionListenerTest` | `failed` — the one state a functional test cannot reach, since it has no worker |
+| `ConversionRunnerTest` | `failed` — the one state a functional test cannot reach, since a stub conversion cannot trip |
 
 Conversion jobs are queued on the `conversions` Messenger transport. A worker
 consumes it — in dev as much as in production. Without one running, a conversion

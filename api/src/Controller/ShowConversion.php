@@ -17,14 +17,14 @@ final readonly class ShowConversion
     {
     }
 
-    public function __invoke(string $id): Response
+    public function __invoke(string $id): JsonResponse
     {
-        $response = new JsonResponse($this->document($this->conversions->withId($id)));
-
-        // A polled status that may be cached is a status that lies.
-        $response->headers->set('Cache-Control', 'no-store');
-
-        return $response;
+        return new JsonResponse(
+            $this->document($this->conversions->withId($id)),
+            Response::HTTP_OK,
+            // A polled status that may be cached is a status that lies.
+            ['Cache-Control' => 'no-store'],
+        );
     }
 
     /**
